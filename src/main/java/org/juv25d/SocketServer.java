@@ -1,4 +1,4 @@
-package org.example;
+package org.juv25d;
 
 import java.io.IOException;
 import java.net.ServerSocket;
