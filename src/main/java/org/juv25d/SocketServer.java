@@ -11,7 +11,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class SocketServer {
-
     private final HttpParser httpParser;
 
     public SocketServer(HttpParser httpParser) {
