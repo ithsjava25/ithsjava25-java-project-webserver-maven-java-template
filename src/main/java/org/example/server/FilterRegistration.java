@@ -5,7 +5,7 @@ import java.util.List;
 public record FilterRegistration(
         HttpFilter filter,
         int order,
-        List<String> routePatterns // null/empty = global
+        List<String> routePatterns
 ) {
 
     public boolean isGlobal() {
