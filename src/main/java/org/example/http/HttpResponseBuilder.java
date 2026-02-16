@@ -9,31 +9,10 @@ public class HttpResponseBuilder {
     private static final String PROTOCOL = "HTTP/1.1";
     private int statusCode = 200;
     private String body = "";
+    private byte[] bytebody;
     private Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     private static final String CRLF = "\r\n";
-
-    public void setStatusCode(int statusCode) {
-        this.statusCode = statusCode;
-    }
-
-    public void setBody(String body) {
-        this.body = body != null ? body : "";
-    }
-
-    public void setHeaders(Map<String, String> headers) {
-        this.headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        this.headers.putAll(headers);
-    }
-
-    public void setHeader(String name, String value) {
-        this.headers.put(name, value);
-    }
-
-    public void setContentTypeFromFilename(String filename) {
-        String mimeType = MimeTypeDetector.detectMimeType(filename);
-        setHeader("Content-Type", mimeType);
-    }
 
     private static final Map<Integer, String> REASON_PHRASES = Map.ofEntries(
             Map.entry(200, "OK"),
@@ -54,10 +33,46 @@ public class HttpResponseBuilder {
             Map.entry(503, "Service Unavailable")
     );
 
-    public String build(){
-        StringBuilder sb = new StringBuilder();
-        String reason = REASON_PHRASES.getOrDefault(statusCode, "");
+    public void setStatusCode(int statusCode) {
+        this.statusCode = statusCode;
+    }
 
+    public void setBody(String body) {
+        this.body = body != null ? body : "";
+    }
+
+    public void setBody(byte[] body) {
+        this.bytebody = body;
+    }
+
+    public void setHeaders(Map<String, String> headers) {
+        this.headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        this.headers.putAll(headers);
+    }
+
+    public void setHeader(String name, String value) {
+        this.headers.put(name, value);
+    }
+
+    public void setContentTypeFromFilename(String filename) {
+        String mimeType = MimeTypeDetector.detectMimeType(filename);
+        setHeader("Content-Type", mimeType);
+    }
+
+    public String build() {
+        StringBuilder sb = new StringBuilder();
+
+        // Calculate content length (both String and byte[] body)
+        int contentLength;
+        if (body.isEmpty() && bytebody != null) {
+            contentLength = bytebody.length;
+            setBody(new String(bytebody, StandardCharsets.UTF_8));
+        } else {
+            contentLength = body.getBytes(StandardCharsets.UTF_8).length;
+        }
+
+        // Status line
+        String reason = REASON_PHRASES.getOrDefault(statusCode, "");
         sb.append(PROTOCOL).append(" ").append(statusCode);
         if (!reason.isEmpty()) {
             sb.append(" ").append(reason);
@@ -65,12 +80,12 @@ public class HttpResponseBuilder {
         sb.append(CRLF);
 
         // User-defined headers
-        headers.forEach((k,v) -> sb.append(k).append(": ").append(v).append(CRLF));
+        headers.forEach((k, v) -> sb.append(k).append(": ").append(v).append(CRLF));
 
         // Auto-append Content-Length if not set
         if (!headers.containsKey("Content-Length")) {
             sb.append("Content-Length: ")
-                    .append(body.getBytes(StandardCharsets.UTF_8).length)
+                    .append(contentLength)
                     .append(CRLF);
         }
 
