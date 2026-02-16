@@ -39,10 +39,12 @@ public class HttpResponseBuilder {
 
     public void setBody(String body) {
         this.body = body != null ? body : "";
+        this.bytebody = null; // Clear byte body when setting string body
     }
 
     public void setBody(byte[] body) {
         this.bytebody = body;
+        this.body = ""; // Clear string body when setting byte body
     }
 
     public void setHeaders(Map<String, String> headers) {
@@ -59,47 +61,58 @@ public class HttpResponseBuilder {
         setHeader("Content-Type", mimeType);
     }
 
-    public String build() {
-        StringBuilder sb = new StringBuilder();
-
-        // Calculate content length (both String and byte[] body)
+    /*
+     * Builds the complete HTTP response as a byte array and preserves binary content without corruption.
+     * @return Complete HTTP response (headers + body) as byte[]
+     */
+    public byte[] build() {
+        // Determine content body and length
+        byte[] contentBody;
         int contentLength;
-        if (body.isEmpty() && bytebody != null) {
+
+        if (bytebody != null) {
+            contentBody = bytebody;
             contentLength = bytebody.length;
-            setBody(new String(bytebody, StandardCharsets.UTF_8));
         } else {
-            contentLength = body.getBytes(StandardCharsets.UTF_8).length;
+            contentBody = body.getBytes(StandardCharsets.UTF_8);
+            contentLength = contentBody.length;
         }
+
+        // Build headers as String
+        StringBuilder headerBuilder = new StringBuilder();
 
         // Status line
         String reason = REASON_PHRASES.getOrDefault(statusCode, "");
-        sb.append(PROTOCOL).append(" ").append(statusCode);
+        headerBuilder.append(PROTOCOL).append(" ").append(statusCode);
         if (!reason.isEmpty()) {
-            sb.append(" ").append(reason);
+            headerBuilder.append(" ").append(reason);
         }
-        sb.append(CRLF);
+        headerBuilder.append(CRLF);
 
         // User-defined headers
-        headers.forEach((k, v) -> sb.append(k).append(": ").append(v).append(CRLF));
+        headers.forEach((k, v) -> headerBuilder.append(k).append(": ").append(v).append(CRLF));
 
-        // Auto-append Content-Length if not set
+        // Auto-append Content-Length if not set.
         if (!headers.containsKey("Content-Length")) {
-            sb.append("Content-Length: ")
-                    .append(contentLength)
-                    .append(CRLF);
+            headerBuilder.append("Content-Length: ").append(contentLength).append(CRLF);
         }
 
-        // Auto-append Connection if not set
+        // Auto-append Connection if not set.
         if (!headers.containsKey("Connection")) {
-            sb.append("Connection: close").append(CRLF);
+            headerBuilder.append("Connection: close").append(CRLF);
         }
 
         // Blank line before body
-        sb.append(CRLF);
+        headerBuilder.append(CRLF);
 
-        // Body
-        sb.append(body);
+        // Convert headers to bytes
+        byte[] headerBytes = headerBuilder.toString().getBytes(StandardCharsets.UTF_8);
 
-        return sb.toString();
+        // Combine headers + body into single byte array
+        byte[] response = new byte[headerBytes.length + contentBody.length];
+        System.arraycopy(headerBytes, 0, response, 0, headerBytes.length);
+        System.arraycopy(contentBody, 0, response, headerBytes.length, contentBody.length);
+
+        return response;
     }
 }

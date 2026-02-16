@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -16,14 +17,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpResponseBuilderTest {
 
+    // Helper method to convert byte[] response to String for assertions
+    private String asString(byte[] response) {
+        return new String(response, StandardCharsets.UTF_8);
+    }
+
     @Test
     void build_returnsValidHttpResponse() {
         HttpResponseBuilder builder = new HttpResponseBuilder();
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("HTTP/1.1 200 OK")
                 .contains("Content-Length: 5")
                 .contains("\r\n\r\n")
@@ -44,9 +51,10 @@ class HttpResponseBuilderTest {
         HttpResponseBuilder builder = new HttpResponseBuilder();
         builder.setBody(body);
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result).contains("Content-Length: " + expectedLength);
+        assertThat(resultStr).contains("Content-Length: " + expectedLength);
     }
 
     @Test
@@ -56,9 +64,10 @@ class HttpResponseBuilderTest {
         builder.setHeader("Content-Type", "text/html; charset=UTF-8");
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result).contains("Content-Type: text/html; charset=UTF-8");
+        assertThat(resultStr).contains("Content-Type: text/html; charset=UTF-8");
     }
 
     @Test
@@ -69,9 +78,10 @@ class HttpResponseBuilderTest {
         builder.setHeader("Cache-Control", "no-cache");
         builder.setBody("{}");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("Content-Type: application/json")
                 .contains("Cache-Control: no-cache");
     }
@@ -99,9 +109,10 @@ class HttpResponseBuilderTest {
         builder.setContentTypeFromFilename(filename);
         builder.setBody("test content");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result).contains("Content-Type: " + expectedContentType);
+        assertThat(resultStr).contains("Content-Type: " + expectedContentType);
     }
 
     @ParameterizedTest(name = "{index} - Filename: {0} => Expected: {1}")
@@ -121,9 +132,10 @@ class HttpResponseBuilderTest {
         builder.setContentTypeFromFilename(filename);
         builder.setBody("test");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result).contains("Content-Type: " + expectedContentType);
+        assertThat(resultStr).contains("Content-Type: " + expectedContentType);
     }
 
     @ParameterizedTest
@@ -134,14 +146,15 @@ class HttpResponseBuilderTest {
         builder.setHeader(headerName, manualValue);
         builder.setBody(bodyContent);
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        long count = result.lines()
+        long count = resultStr.lines()
                 .filter(line -> line.startsWith(headerName + ":"))
                 .count();
 
         assertThat(count).isEqualTo(1);
-        assertThat(result).contains(headerName + ": " + manualValue);
+        assertThat(resultStr).contains(headerName + ": " + manualValue);
     }
 
     private static Stream<Arguments> provideHeaderDuplicationScenarios() {
@@ -168,9 +181,10 @@ class HttpResponseBuilderTest {
         builder.setHeader("Content-Length", "100");
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        long count = result.lines()
+        long count = resultStr.lines()
                 .filter(line -> line.toLowerCase().startsWith("content-length:"))
                 .count();
 
@@ -196,9 +210,10 @@ class HttpResponseBuilderTest {
         builder.setStatusCode(statusCode);
         builder.setBody("");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result).contains("HTTP/1.1 " + statusCode + " " + expectedReason);
+        assertThat(resultStr).contains("HTTP/1.1 " + statusCode + " " + expectedReason);
     }
 
     // Redirect status codes
@@ -217,9 +232,10 @@ class HttpResponseBuilderTest {
         builder.setHeader("Location", location);
         builder.setBody("");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("HTTP/1.1 " + statusCode + " " + expectedReason)
                 .contains("Location: " + location)
                 .doesNotContain("OK");
@@ -242,9 +258,10 @@ class HttpResponseBuilderTest {
         builder.setStatusCode(statusCode);
         builder.setBody("Error message");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("HTTP/1.1 " + statusCode + " " + expectedReason)
                 .doesNotContain("OK");
     }
@@ -258,9 +275,10 @@ class HttpResponseBuilderTest {
         builder.setStatusCode(statusCode);
         builder.setBody("");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .startsWith("HTTP/1.1 " + statusCode)
                 .doesNotContain("OK");
     }
@@ -271,9 +289,10 @@ class HttpResponseBuilderTest {
         HttpResponseBuilder builder = new HttpResponseBuilder();
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("Content-Length: 5")
                 .contains("Connection: close");
     }
@@ -286,9 +305,10 @@ class HttpResponseBuilderTest {
         builder.setHeader("Cache-Control", "no-cache");
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("Content-Type: text/html")
                 .contains("Cache-Control: no-cache")
                 .contains("Content-Length: 5")
@@ -310,14 +330,15 @@ class HttpResponseBuilderTest {
         builder.setHeader(headerName, headerValue);
         builder.setBody("Hello");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        long count = result.lines()
+        long count = resultStr.lines()
                 .filter(line -> line.toLowerCase().contains("content-length"))
                 .count();
 
         assertThat(count).isEqualTo(1);
-        assertThat(result.toLowerCase()).contains("content-length: " + headerValue.toLowerCase());
+        assertThat(resultStr.toLowerCase()).contains("content-length: " + headerValue.toLowerCase());
     }
 
     // Empty/null body
@@ -331,9 +352,10 @@ class HttpResponseBuilderTest {
         HttpResponseBuilder builder = new HttpResponseBuilder();
         builder.setBody(body);
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains("HTTP/1.1 200 OK")
                 .contains("Content-Length: " + expectedLength);
     }
@@ -353,9 +375,10 @@ class HttpResponseBuilderTest {
         builder.setHeader(headerName, secondValue);  // Override
         builder.setBody("Test");
 
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
-        assertThat(result)
+        assertThat(resultStr)
                 .contains(headerName + ": " + secondValue)
                 .doesNotContain(headerName + ": " + firstValue);
     }
@@ -376,13 +399,14 @@ class HttpResponseBuilderTest {
         }
 
         builder.setBody(body);
-        String result = builder.build();
+        byte[] result = builder.build();
+        String resultStr = asString(result);
 
         if (expectedContentLength != null) {
-            assertThat(result).contains("Content-Length: " + expectedContentLength);
+            assertThat(resultStr).contains("Content-Length: " + expectedContentLength);
         }
         if (expectedConnection != null) {
-            assertThat(result).contains("Connection: " + expectedConnection);
+            assertThat(resultStr).contains("Connection: " + expectedConnection);
         }
     }
 
@@ -395,5 +419,40 @@ class HttpResponseBuilderTest {
                 Arguments.of("Hello", true, true, "999", "keep-alive"),      // Both manual
                 Arguments.of("", false, false, "0", "close")                 // Empty body
         );
+    }
+
+    @Test
+    @DisplayName("Should preserve binary content without corruption")
+    void build_preservesBinaryContent() {
+        HttpResponseBuilder builder = new HttpResponseBuilder();
+
+        // Create binary data with non-UTF-8 bytes
+        byte[] binaryData = new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47, // PNG header
+                (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0 // Invalid UTF-8 sequences
+        };
+
+        builder.setBody(binaryData);
+        builder.setContentTypeFromFilename("test.png");
+
+        byte[] result = builder.build();
+
+        // Extract body from response (everything after \r\n\r\n)
+        int bodyStart = -1;
+        for (int i = 0; i < result.length - 3; i++) {
+            if (result[i] == '\r' && result[i+1] == '\n' &&
+                    result[i+2] == '\r' && result[i+3] == '\n') {
+                bodyStart = i + 4;
+                break;
+            }
+        }
+
+        assertThat(bodyStart).isGreaterThan(0);
+
+        // Verify binary data is intact
+        byte[] actualBody = new byte[binaryData.length];
+        System.arraycopy(result, bodyStart, actualBody, 0, binaryData.length);
+
+        assertThat(actualBody).isEqualTo(binaryData);
     }
 }
