@@ -1,7 +1,6 @@
 package org.example.server;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -15,37 +14,32 @@ public class ConfigurableFilterPipeline {
 
     public HttpResponse execute(HttpRequest request, TerminalHandler handler) {
 
-        List<HttpFilter> globalFilters = new ArrayList<>();
-        List<HttpFilter> routeFilters = new ArrayList<>();
+        List<FilterRegistration> globalRegs = new ArrayList<>();
+        List<FilterRegistration> routeRegs = new ArrayList<>();
 
         for (FilterRegistration reg : registrations) {
-
             if (reg.isGlobal()) {
-                globalFilters.add(reg.filter());
+                globalRegs.add(reg);
             } else {
                 if (matchesAny(reg.routePatterns(), request.path())) {
-                    routeFilters.add(reg.filter());
+                    routeRegs.add(reg);
                 }
             }
         }
 
-        Collections.sort(globalFilters, new Comparator<HttpFilter>() {
-            @Override
-            public int compare(HttpFilter f1, HttpFilter f2) {
-                return Integer.compare(getOrder(f1), getOrder(f2));
-            }
-        });
+        Comparator<FilterRegistration> byOrder =
+                Comparator.comparingInt(FilterRegistration::order);
 
-        Collections.sort(routeFilters, new Comparator<HttpFilter>() {
-            @Override
-            public int compare(HttpFilter f1, HttpFilter f2) {
-                return Integer.compare(getOrder(f1), getOrder(f2));
-            }
-        });
+        globalRegs.sort(byOrder);
+        routeRegs.sort(byOrder);
 
-        List<HttpFilter> allFilters = new ArrayList<>();
-        allFilters.addAll(globalFilters);
-        allFilters.addAll(routeFilters);
+        List<HttpFilter> allFilters = new ArrayList<>(globalRegs.size() + routeRegs.size());
+        for (FilterRegistration reg : globalRegs) {
+            allFilters.add(reg.filter());
+        }
+        for (FilterRegistration reg : routeRegs) {
+            allFilters.add(reg.filter());
+        }
 
         return buildChain(allFilters, handler).next(request);
     }
@@ -85,15 +79,6 @@ public class ConfigurableFilterPipeline {
         }
 
         return chain;
-    }
-
-    private int getOrder(HttpFilter filter) {
-        for (FilterRegistration reg : registrations) {
-            if (reg.filter() == filter) {
-                return reg.order();
-            }
-        }
-        return 0;
     }
 }
 
