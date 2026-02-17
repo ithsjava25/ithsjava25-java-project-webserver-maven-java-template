@@ -12,14 +12,21 @@ import java.util.Map;
 public class StaticFileHandler {
     private static final String WEB_ROOT = "www";
     private byte[] fileBytes;
+    private final FileCache cache = new FileCache();
 
     public StaticFileHandler(){}
 
     private void handleGetRequest(String uri) throws IOException {
-
+        if (cache.contains(uri)) {
+            System.out.println("✓ Cache hit for: " + uri);
+            fileBytes = cache.get(uri);
+            return;
+        }
+        System.out.println("✗ Cache miss for: " + uri);
         File file = new File(WEB_ROOT, uri);
         fileBytes = Files.readAllBytes(file.toPath());
 
+        cache.put(uri, fileBytes);
     }
 
     public void sendGetRequest(OutputStream outputStream, String uri) throws IOException{
