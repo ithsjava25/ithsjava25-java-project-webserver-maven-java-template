@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
-import java.util.Map;
 
 public class StaticFileHandler {
     private final String WEB_ROOT;
@@ -24,7 +23,16 @@ public class StaticFileHandler {
     }
 
     private void handleGetRequest(String uri) throws IOException {
-        File file = new File(WEB_ROOT, uri);
+        // Security: Prevent path traversal attacks (e.g. GET /../../etc/passwd)
+        File root = new File(WEB_ROOT).getCanonicalFile();
+        File file = new File(root, uri).getCanonicalFile();
+
+        if (!file.toPath().startsWith(root.toPath())) {
+            fileBytes = "403 Forbidden".getBytes();
+            statusCode = 403;
+            return;
+        }
+
         if (file.exists()) {
             fileBytes = Files.readAllBytes(file.toPath());
             statusCode = 200;
@@ -44,11 +52,10 @@ public class StaticFileHandler {
 
         HttpResponseBuilder response = new HttpResponseBuilder();
         response.setStatusCode(statusCode);
-        response.setHeaders(Map.of("Content-Type", "text/html; charset=utf-8"));
+        // Use MimeTypeDetector instead of hardcoded text/html
+        response.setContentTypeFromFilename(uri);
         response.setBody(fileBytes);
 
-        // Använder outputStream.write() direkt istället för PrintWriter,
-        //PrintWriter lägger till extra radbrytningar och fungerar dåligt med binär data!
         outputStream.write(response.build());
         outputStream.flush();
     }
