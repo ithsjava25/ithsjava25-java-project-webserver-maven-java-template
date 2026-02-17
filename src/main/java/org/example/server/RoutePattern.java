@@ -8,8 +8,8 @@ public final class RoutePattern {
         if (pattern == null || path == null) return false;
 
         if (pattern.endsWith("/*")) {
-            String prefix = pattern.substring(0, pattern.length() - 1);
-            return path.startsWith(prefix);
+            String base = pattern.substring(0, pattern.length() - 2); // drop "/*"
+            return path.equals(base) || path.startsWith(base + "/");
         }
 
         return pattern.equals(path);
