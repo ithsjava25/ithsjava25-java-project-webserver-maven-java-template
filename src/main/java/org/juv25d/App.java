@@ -2,6 +2,7 @@ package org.juv25d;
 
 import org.juv25d.filter.IpFilter;
 import org.juv25d.filter.LoggingFilter;
+import org.juv25d.filter.RateLimitingFilter;
 import org.juv25d.logging.ServerLogging;
 import org.juv25d.http.HttpParser;
 import org.juv25d.plugin.NotFoundPlugin; // New import
@@ -26,7 +27,15 @@ public class App {
             Set.of(),
             Set.of()
         ), 0);
+
         pipeline.addGlobalFilter(new LoggingFilter(), 0);
+
+        if (config.isRateLimitingEnabled()) {
+            pipeline.addGlobalFilter(new RateLimitingFilter(
+                config.getRequestsPerMinute(),
+                config.getBurstCapacity()
+            ), 0);
+        }
 
         // Initialize and configure SimpleRouter
         SimpleRouter router = new SimpleRouter();
