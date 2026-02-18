@@ -13,13 +13,16 @@ import java.io.IOException;
 
         @Override
         public void doFilter(HttpRequest req, HttpResponse res, FilterChain chain) throws IOException {
-            chain.doFilter(req, res);
+            try {
+                chain.doFilter(req, res);
+            } finally {
 
-            res.setHeader("X-Content-Type-Options", "nosniff");
-            res.setHeader("X-Frame-Options", "DENY");
-            res.setHeader("X-XSS-Protection", "0");
-            res.setHeader("Referrer-Policy", "no-referrer");
+                res.setHeader("X-Content-Type-Options", "nosniff");
+                res.setHeader("X-Frame-Options", "DENY");
+                res.setHeader("X-XSS-Protection", "0");
+                res.setHeader("Referrer-Policy", "no-referrer");
 
+            }
         }
     }
 

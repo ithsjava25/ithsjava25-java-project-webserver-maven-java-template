@@ -20,6 +20,9 @@ public class App {
         HttpParser httpParser = new HttpParser();
 
         Pipeline pipeline = new Pipeline();
+
+        pipeline.addGlobalFilter(new SecurityHeadersFilter(), 0);
+
         // Configure redirect rules
         List<RedirectRule> redirectRules = List.of(
             new RedirectRule("/old-page", "/new-page", 301),
@@ -27,7 +30,6 @@ public class App {
             new RedirectRule("/docs/*", "/documentation/", 301)
         );
         pipeline.addGlobalFilter(new RedirectFilter(redirectRules), 0);
-
 
         // IP filter is enabled but configured with open access during development
         // White/blacklist can be tightened when specific IP restrictions are decided
