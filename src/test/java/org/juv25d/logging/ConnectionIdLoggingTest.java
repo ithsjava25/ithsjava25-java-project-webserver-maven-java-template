@@ -16,10 +16,10 @@ class ConnectionIdLoggingTest {
         // Arrange
         Logger logger = Logger.getLogger("test.connectionid");
         logger.setUseParentHandlers(false);
-        
+
         List<String> formattedMessages = new ArrayList<>();
         ServerLogFormatter formatter = new ServerLogFormatter();
-        
+
         Handler handler = new Handler() {
             @Override
             public void publish(LogRecord record) {
@@ -40,7 +40,7 @@ class ConnectionIdLoggingTest {
             logger.info("This is a test message");
 
             // Assert
-            assertTrue(formattedMessages.get(0).contains("[" + testId + "]"), 
+            assertTrue(formattedMessages.get(0).contains("[" + testId + "]"),
                 "Log message should contain the connection ID. Found: " + formattedMessages.get(0));
         } finally {
             LogContext.clear();
