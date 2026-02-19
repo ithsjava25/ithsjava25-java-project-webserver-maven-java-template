@@ -147,6 +147,54 @@ class ConfigurableFilterPipelineTest {
         assertEquals(List.of("f10", "f20", "f30", "handler"), events);
     }
 
+    @Test
+    void global_stop_filter_prevents_route_and_handler() {
+        List<String> events = new ArrayList<>();
+
+        HttpFilter globalStop = new TestFilter("gStop", events, true);
+        HttpFilter routeFilter = new TestFilter("r1", events, false);
+
+        List<FilterRegistration> regs = List.of(
+                new FilterRegistration(globalStop, 1, null),
+                new FilterRegistration(routeFilter, 1, List.of("/api/*"))
+        );
+
+        ConfigurableFilterPipeline pipeline =
+                new ConfigurableFilterPipeline(regs);
+
+        HttpResponse response = pipeline.execute(
+                new HttpRequest("GET", "/api/users"),
+                new TestHandler(events)
+        );
+
+        assertEquals(403, response.getStatusCode());
+        assertEquals(List.of("gStop"), events);
+    }
+
+    @Test
+    void route_stop_filter_prevents_handler_but_global_runs() {
+        List<String> events = new ArrayList<>();
+
+        HttpFilter global = new TestFilter("g1", events, false);
+        HttpFilter routeStop = new TestFilter("rStop", events, true);
+
+        List<FilterRegistration> regs = List.of(
+                new FilterRegistration(global, 1, null),
+                new FilterRegistration(routeStop, 1, List.of("/api/*"))
+        );
+
+        ConfigurableFilterPipeline pipeline =
+                new ConfigurableFilterPipeline(regs);
+
+        HttpResponse response = pipeline.execute(
+                new HttpRequest("GET", "/api/users"),
+                new TestHandler(events)
+        );
+
+        assertEquals(403, response.getStatusCode());
+        assertEquals(List.of("g1", "rStop"), events);
+    }
+
 
     static class TestFilter implements HttpFilter {
 
