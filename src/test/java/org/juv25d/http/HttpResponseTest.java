@@ -44,4 +44,12 @@ public class HttpResponseTest {
         response.setHeader("Content-Type", "text/plain");
         assertEquals("text/plain", response.headers().get("Content-Type"));
     }
+
+    @Test
+    void shouldHaveEmptyBodyByDefault() {
+        HttpResponse response = new HttpResponse();
+        assertEquals(0, response.body().length);
+    }
+
+
 }
