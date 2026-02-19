@@ -20,7 +20,7 @@ public class ServerLogging {
 
         if (logger.getHandlers().length == 0) {
             ConsoleHandler handler = new ConsoleHandler();
-            handler.setFormatter(new SimpleFormatter());
+            handler.setFormatter(new ServerLogFormatter());
             logger.addHandler(handler);
         }
 
