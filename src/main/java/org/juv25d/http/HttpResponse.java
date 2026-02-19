@@ -15,6 +15,8 @@ public class HttpResponse {
     private byte[] body;
 
     public HttpResponse(){
+        this.statusCode = 200;
+        this.statusText = "OK";
         this.headers = new LinkedHashMap<>();
         this.body = new byte[0];
     }
@@ -22,7 +24,7 @@ public class HttpResponse {
     public HttpResponse(int statusCode, String statusText, Map<String, String> headers, byte[] body) {
         this.statusCode = statusCode;
         this.statusText = statusText;
-        this.headers = new LinkedHashMap<>(headers);
+        this.headers = headers != null ? new LinkedHashMap<>(headers) : new LinkedHashMap<>();
         this.body = body != null ? body.clone() : new byte[0];
     }
 
