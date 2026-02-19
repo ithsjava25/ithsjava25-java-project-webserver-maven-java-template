@@ -38,4 +38,10 @@ public class HttpResponseTest {
         assertTrue(response.headers().isEmpty());
     }
 
+    @Test
+    void shouldSetAndReturnHeader() {
+        HttpResponse response = new HttpResponse();
+        response.setHeader("Content-Type", "text/plain");
+        assertEquals("text/plain", response.headers().get("Content-Type"));
+    }
 }
