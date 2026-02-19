@@ -2,6 +2,7 @@ package org.juv25d.http;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class HttpResponseTest {
 
@@ -18,4 +19,9 @@ public class HttpResponseTest {
         assertEquals(404, response.statusCode());
     }
 
+    @Test
+    void shouldReturnDefaultText() {
+        HttpResponse response = new HttpResponse();
+        assertNull(response.statusText());
+    }
 }
