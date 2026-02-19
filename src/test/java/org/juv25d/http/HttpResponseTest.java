@@ -51,5 +51,11 @@ public class HttpResponseTest {
         assertEquals(0, response.body().length);
     }
 
-
+    @Test
+    void shouldSetAndReturnBody() {
+        HttpResponse response = new HttpResponse();
+        byte[] body = "Hello World".getBytes();
+        response.setBody(body);
+        assertArrayEquals(body, response.body());
+    }
 }
