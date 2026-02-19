@@ -40,8 +40,6 @@ public class App {
 
         pipeline.addGlobalFilter(new LoggingFilter(), 0);
 
-        pipeline.addGlobalFilter(new SecurityHeadersFilter(), 0);
-
         if (config.isRateLimitingEnabled()) {
             pipeline.addGlobalFilter(new RateLimitingFilter(
                 config.getRequestsPerMinute(),
