@@ -1,5 +1,7 @@
 package org.juv25d.logging;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,10 +16,18 @@ public class ServerLogFormatter extends Formatter {
         String connectionId = LogContext.getConnectionId();
         String idPart = (connectionId != null) ? " [" + connectionId + "]" : "";
 
-        return String.format("%s %s%s: %s%n",
-                ZonedDateTime.now(ZoneId.systemDefault()).format(dtf),
-                record.getLevel(),
-                idPart,
-                formatMessage(record));
+        StringBuilder sb = new StringBuilder(
+                String.format("%s %s%s: %s%n",
+                        ZonedDateTime.now(ZoneId.systemDefault()).format(dtf),
+                        record.getLevel(),
+                        idPart,
+                        formatMessage(record)));
+
+        if (record.getThrown() != null) {
+            StringWriter sw = new StringWriter();
+            record.getThrown().printStackTrace(new PrintWriter(sw));
+            sb.append(sw);
+        }
+        return sb.toString();
     }
 }
