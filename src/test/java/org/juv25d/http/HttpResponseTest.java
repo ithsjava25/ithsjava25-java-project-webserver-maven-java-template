@@ -24,4 +24,11 @@ public class HttpResponseTest {
         HttpResponse response = new HttpResponse();
         assertNull(response.statusText());
     }
+
+    @Test
+    void shouldSetAndReturnStatusText() {
+        HttpResponse response = new HttpResponse();
+        response.setStatusText("Not found");
+        assertEquals("Not found", response.statusText());
+    }
 }
