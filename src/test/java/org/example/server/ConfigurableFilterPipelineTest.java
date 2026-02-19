@@ -195,6 +195,69 @@ class ConfigurableFilterPipelineTest {
         assertEquals(List.of("g1", "rStop"), events);
     }
 
+    @Test
+    void response_phase_can_be_done_with_try_finally_in_filters_reverse_order() {
+        List<String> events = new ArrayList<>();
+
+        HttpFilter f1 = (req, chain) -> {
+            events.add("f1:enter");
+            try {
+                return chain.next(req);
+            } finally {
+                events.add("f1:exit");
+            }
+        };
+
+        HttpFilter f2 = (req, chain) -> {
+            events.add("f2:enter");
+            try {
+                return chain.next(req);
+            } finally {
+                events.add("f2:exit");
+            }
+        };
+
+        List<FilterRegistration> regs = List.of(
+                new FilterRegistration(f1, 10, null),
+                new FilterRegistration(f2, 20, null)
+        );
+
+        ConfigurableFilterPipeline pipeline =
+                new ConfigurableFilterPipeline(regs);
+
+        pipeline.execute(new HttpRequest("GET", "/home"), request -> {
+            events.add("handler");
+            return new HttpResponse(200, "OK");
+        });
+
+        assertEquals(
+                List.of("f1:enter", "f2:enter", "handler", "f2:exit", "f1:exit"),
+                events
+        );
+    }
+
+    @Test
+    void global_filters_run_before_route_filters_even_if_route_has_lower_order() {
+        List<String> events = new ArrayList<>();
+
+        HttpFilter global100 = new TestFilter("g100", events, false);
+        HttpFilter route0 = new TestFilter("r0", events, false);
+
+        List<FilterRegistration> regs = List.of(
+                new FilterRegistration(global100, 100, null),
+                new FilterRegistration(route0, 0, List.of("/api/*"))
+        );
+
+        ConfigurableFilterPipeline pipeline =
+                new ConfigurableFilterPipeline(regs);
+
+        pipeline.execute(
+                new HttpRequest("GET", "/api/users"),
+                new TestHandler(events)
+        );
+
+        assertEquals(List.of("g100", "r0", "handler"), events);
+    }
 
     static class TestFilter implements HttpFilter {
 
