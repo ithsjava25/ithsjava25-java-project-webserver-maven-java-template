@@ -1,8 +1,8 @@
 package org.juv25d.http;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class HttpResponseTest {
 
@@ -31,4 +31,11 @@ public class HttpResponseTest {
         response.setStatusText("Not found");
         assertEquals("Not found", response.statusText());
     }
+
+    @Test
+    void shouldHaveEmptyHeaderByDefault() {
+        HttpResponse response = new HttpResponse();
+        assertTrue(response.headers().isEmpty());
+    }
+
 }
