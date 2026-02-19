@@ -10,4 +10,12 @@ public class HttpResponseTest {
         HttpResponse response = new HttpResponse();
         assertEquals(0, response.statusCode());
     }
+
+    @Test
+    void shouldSetAndReturnStatusCode() {
+        HttpResponse response = new HttpResponse();
+        response.setStatusCode(404);
+        assertEquals(404, response.statusCode());
+    }
+
 }
