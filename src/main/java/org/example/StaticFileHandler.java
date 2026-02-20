@@ -11,32 +11,17 @@ import java.util.Map;
 
 public class StaticFileHandler {
     private static final String WEB_ROOT = "www";
-    private byte[] fileBytes;
-    private final FileCache cache = new FileCache();
+    private final CacheFilter cacheFilter = new CacheFilter();
 
-    public StaticFileHandler(){}
-
-    private void handleGetRequest(String uri) throws IOException {
-        if (cache.contains(uri)) {
-            System.out.println("✓ Cache hit for: " + uri);
-            fileBytes = cache.get(uri);
-            return;
-        }
-        System.out.println("✗ Cache miss for: " + uri);
-        File file = new File(WEB_ROOT, uri);
-        fileBytes = Files.readAllBytes(file.toPath());
-
-        cache.put(uri, fileBytes);
-    }
-
-    public void sendGetRequest(OutputStream outputStream, String uri) throws IOException{
-        handleGetRequest(uri);
+    public void sendGetRequest(OutputStream outputStream, String uri) throws IOException {
+        byte[] fileBytes = cacheFilter.getOrFetch(uri, 
+            path -> Files.readAllBytes(new File(WEB_ROOT, path).toPath())
+        );
+        
         HttpResponseBuilder response = new HttpResponseBuilder();
         response.setHeaders(Map.of("Content-Type", "text/html; charset=utf-8"));
         response.setBody(fileBytes);
         PrintWriter writer = new PrintWriter(outputStream, true);
         writer.println(response.build());
-
     }
-
 }
