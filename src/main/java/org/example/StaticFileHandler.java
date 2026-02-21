@@ -10,12 +10,24 @@ import java.nio.file.Files;
 import java.util.Map;
 
 public class StaticFileHandler {
-    private static final String WEB_ROOT = "www";
-    private final CacheFilter cacheFilter = new CacheFilter();
+    private static final String DEFAULT_WEB_ROOT = "www";
+    private final String webRoot;
+    private final CacheFilter cacheFilter;
+
+    // Standardkonstruktor - använder "www"
+    public StaticFileHandler() {
+        this(DEFAULT_WEB_ROOT);
+    }
+
+    // Konstruktor som tar en anpassad webRoot-sökväg (för tester)
+    public StaticFileHandler(String webRoot) {
+        this.webRoot = webRoot;
+        this.cacheFilter = new CacheFilter();
+    }
 
     public void sendGetRequest(OutputStream outputStream, String uri) throws IOException {
         byte[] fileBytes = cacheFilter.getOrFetch(uri, 
-            path -> Files.readAllBytes(new File(WEB_ROOT, path).toPath())
+            path -> Files.readAllBytes(new File(webRoot, path).toPath())
         );
         
         HttpResponseBuilder response = new HttpResponseBuilder();
