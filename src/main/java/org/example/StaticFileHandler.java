@@ -5,8 +5,9 @@ import org.example.http.HttpResponseBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 
 public class StaticFileHandler {
@@ -30,21 +31,21 @@ public class StaticFileHandler {
             // Sanera URI: ta bort frågetecken, hashtaggar, ledande snedstreck och null-bytes
             String sanitizedUri = sanitizeUri(uri);
             
-            // Kontrollera för sökvägsgenomgång-attacker
+            // Kontrollera för sökvägsgenomgång-attacker med Path normalisering
             if (isPathTraversal(sanitizedUri)) {
                 sendErrorResponse(outputStream, 403, "Forbidden");
                 return;
             }
             
-            byte[] fileBytes = cacheFilter.getOrFetch(sanitizedUri, 
+            byte[] fileBytes = cacheFilter.getOrFetch(sanitizedUri,
                 path -> Files.readAllBytes(new File(webRoot, path).toPath())
             );
             
             HttpResponseBuilder response = new HttpResponseBuilder();
-            response.setHeaders(Map.of("Content-Type", "text/html; charset=utf-8"));
+            response.setHeaders(Map.of("Content-Type", "text/html; charset=UTF-8"));
             response.setBody(fileBytes);
-            PrintWriter writer = new PrintWriter(outputStream, true);
-            writer.println(response.build());
+            outputStream.write(response.build());
+            outputStream.flush();
             
         } catch (IOException e) {
             // Hantera saknad fil och andra IO-fel
@@ -76,16 +77,26 @@ public class StaticFileHandler {
 
     private boolean isPathTraversal(String uri) {
         // Kontrollera för kataloggenomgång-försök
-        return uri.contains("..") || uri.contains("~");
+        try {
+            // Normalisera sökvägen för att detektera traversal-försök
+            Path webRootPath = Paths.get(webRoot).toRealPath();
+            Path requestedPath = webRootPath.resolve(uri).normalize();
+            
+            // Om den normaliserade sökvägen är utanför webRoot, är det path traversal
+            return !requestedPath.startsWith(webRootPath);
+        } catch (IOException e) {
+            // Om något går fel vid normalisering, behandla det som potentiell path traversal
+            return true;
+        }
     }
 
     private void sendErrorResponse(OutputStream outputStream, int statusCode, String statusMessage) throws IOException {
         HttpResponseBuilder response = new HttpResponseBuilder();
         response.setStatusCode(statusCode);
-        response.setHeaders(Map.of("Content-Type", "text/html; charset=utf-8"));
+        response.setHeaders(Map.of("Content-Type", "text/html; charset=UTF-8"));
         String body = "<html><body><h1>" + statusCode + " " + statusMessage + "</h1></body></html>";
         response.setBody(body);
-        PrintWriter writer = new PrintWriter(outputStream, true);
-        writer.println(response.build());
+        outputStream.write(response.build());
+        outputStream.flush();
     }
 }
