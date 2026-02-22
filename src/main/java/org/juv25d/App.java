@@ -3,7 +3,9 @@ package org.juv25d;
 import org.juv25d.filter.*;
 import org.juv25d.logging.ServerLogging;
 import org.juv25d.http.HttpParser;
-import org.juv25d.plugin.NotFoundPlugin;
+import org.juv25d.plugin.HealthCheckPlugin;
+import org.juv25d.plugin.MetricPlugin;
+import org.juv25d.plugin.NotFoundPlugin; // New import
 import org.juv25d.plugin.StaticFilesPlugin;
 import org.juv25d.router.SimpleRouter;
 import org.juv25d.util.ConfigLoader;
@@ -39,9 +41,11 @@ public class App {
 
 
         SimpleRouter router = new SimpleRouter();
-        router.registerPlugin("/", new StaticFilesPlugin());
-        router.registerPlugin("/*", new StaticFilesPlugin());
-        router.registerPlugin("/notfound", new NotFoundPlugin());
+        router.registerPlugin("/metric", new MetricPlugin()); //Register MetricPlugin for a specified path
+        router.registerPlugin("/health", new HealthCheckPlugin()); //Register HealthCheckPlugin for a specified path
+        router.registerPlugin("/", new StaticFilesPlugin()); // Register StaticFilesPlugin for the root path
+        router.registerPlugin("/*", new StaticFilesPlugin()); // Register StaticFilesPlugin for all paths
+        router.registerPlugin("/notfound", new NotFoundPlugin()); // Example: Register NotFoundPlugin for a specific path
 
         pipeline.setRouter(router);
 
