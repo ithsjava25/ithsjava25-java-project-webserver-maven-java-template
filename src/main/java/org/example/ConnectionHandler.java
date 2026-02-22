@@ -20,7 +20,24 @@ public class ConnectionHandler implements AutoCloseable {
         parser.setReader(client.getInputStream());
         parser.parseRequest();
         parser.parseHttp();
-        resolveTargetFile(parser.getUri());
+
+        // --- DIN ÄNDRING FÖR ISSUE #75 BÖRJAR HÄR ---
+        String requestedUri = parser.getUri();
+        if (requestedUri.equals("/health")) {
+            String responseBody = "{\"status\": \"ok\"}";
+            String header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: application/json\r\n" +
+                    "Content-Length: " + responseBody.length() + "\r\n" +
+                    "\r\n";
+
+            client.getOutputStream().write(header.getBytes());
+            client.getOutputStream().write(responseBody.getBytes());
+            client.getOutputStream().flush();
+            return; // Avslutar här så vi inte letar efter filer i onödan
+        }
+        // --- DIN ÄNDRING SLUTAR HÄR ---
+
+        resolveTargetFile(requestedUri);
         sfh.sendGetRequest(client.getOutputStream(), uri);
     }
 
@@ -32,7 +49,6 @@ public class ConnectionHandler implements AutoCloseable {
         } else {
             this.uri = uri;
         }
-
     }
 
     @Override
