@@ -1,37 +1,40 @@
 package org.juv25d.http;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HttpResponseTest {
 
+    private HttpResponse response;
+
+    @BeforeEach
+    void setUp() {
+        response = new HttpResponse();
+    }
+
     @Test
-    void shouldReturnDefaultValue() {
-        HttpResponse response = new HttpResponse();
+    void shouldReturnDefaultStatusCode() {
         assertEquals(0, response.statusCode());
     }
 
     @Test
     void shouldReturnDefaultText() {
-        HttpResponse response = new HttpResponse();
-        assertNull(response.statusText());
+        assertEquals("", response.statusText());
     }
 
     @Test
     void shouldThrowExceptionWhenStatusTextIsNull() {
-        HttpResponse response = new HttpResponse();
         assertThrows(NullPointerException.class, () -> response.setStatusText(null));
     }
 
     @Test
     void shouldHaveEmptyHeaderByDefault() {
-        HttpResponse response = new HttpResponse();
         assertTrue(response.headers().isEmpty());
     }
 
     @Test
     void shouldHaveEmptyBodyByDefault() {
-        HttpResponse response = new HttpResponse();
-        assertEquals(0, response.body().length);
+        assertArrayEquals(new byte[0], response.body());
     }
 }
