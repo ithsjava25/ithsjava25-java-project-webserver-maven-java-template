@@ -12,32 +12,32 @@ import java.util.Map;
 
 public class StaticFileHandler {
     private static final String DEFAULT_WEB_ROOT = "www";
+    
+    // ✅ EN shared cache för alla threads
+    private static final CacheFilter SHARED_CACHE = new CacheFilter();
+    
     private final String webRoot;
-    private final CacheFilter cacheFilter;
 
-    // Standardkonstruktor - använder "www"
     public StaticFileHandler() {
         this(DEFAULT_WEB_ROOT);
     }
 
-    // Konstruktor som tar en anpassad webRoot-sökväg (för tester)
+
     public StaticFileHandler(String webRoot) {
         this.webRoot = webRoot;
-        this.cacheFilter = new CacheFilter();
     }
 
     public void sendGetRequest(OutputStream outputStream, String uri) throws IOException {
         try {
-            // Sanera URI: ta bort frågetecken, hashtaggar, ledande snedstreck och null-bytes
             String sanitizedUri = sanitizeUri(uri);
             
-            // Kontrollera för sökvägsgenomgång-attacker med Path normalisering
             if (isPathTraversal(sanitizedUri)) {
                 sendErrorResponse(outputStream, 403, "Forbidden");
                 return;
             }
             
-            byte[] fileBytes = cacheFilter.getOrFetch(sanitizedUri,
+            // Använd shared cache istället för ny instans
+            byte[] fileBytes = SHARED_CACHE.getOrFetch(sanitizedUri,
                 path -> Files.readAllBytes(new File(webRoot, path).toPath())
             );
             
@@ -48,7 +48,6 @@ public class StaticFileHandler {
             outputStream.flush();
             
         } catch (IOException e) {
-            // Hantera saknad fil och andra IO-fel
             try {
                 sendErrorResponse(outputStream, 404, "Not Found");
             } catch (IOException ex) {
@@ -58,16 +57,10 @@ public class StaticFileHandler {
     }
 
     private String sanitizeUri(String uri) {
-        // Ta bort frågesträngar (?)
         uri = uri.split("\\?")[0];
-        
-        // Ta bort fragment (#)
         uri = uri.split("#")[0];
-        
-        // Ta bort null-bytes
         uri = uri.replace("\0", "");
         
-        // Ta bort ledande snedstreck
         while (uri.startsWith("/")) {
             uri = uri.substring(1);
         }
@@ -76,16 +69,12 @@ public class StaticFileHandler {
     }
 
     private boolean isPathTraversal(String uri) {
-        // Kontrollera för kataloggenomgång-försök
         try {
-            // Normalisera sökvägen för att detektera traversal-försök
             Path webRootPath = Paths.get(webRoot).toRealPath();
             Path requestedPath = webRootPath.resolve(uri).normalize();
             
-            // Om den normaliserade sökvägen är utanför webRoot, är det path traversal
             return !requestedPath.startsWith(webRootPath);
         } catch (IOException e) {
-            // Om något går fel vid normalisering, behandla det som potentiell path traversal
             return true;
         }
     }
@@ -98,5 +87,14 @@ public class StaticFileHandler {
         response.setBody(body);
         outputStream.write(response.build());
         outputStream.flush();
+    }
+
+    //Diagnostik-metod
+    public static CacheFilter.CacheStats getCacheStats() {
+        return SHARED_CACHE.getStats();
+    }
+
+    public static void clearCache() {
+        SHARED_CACHE.clearCache();
     }
 }

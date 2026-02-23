@@ -1,5 +1,6 @@
 package org.example;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,6 +11,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 
 /**
  * Unit test class for verifying the behavior of the StaticFileHandler class.
@@ -25,12 +28,115 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class StaticFileHandlerTest {
 
+    private StaticFileHandler handler;
+
     //Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
     @TempDir
     Path tempDir;
 
+    @BeforeEach
+    void setUp() {
+        // Rensa cache innan varje test för clean state
+        StaticFileHandler.clearCache();
+    }
+
 
     @Test
+    void testCaching_HitOnSecondRequest() throws IOException {
+        // Arrange
+        Files.writeString(tempDir.resolve("cached.html"), "Content");
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+
+        // Act - Första anropet (cache miss)
+        handler.sendGetRequest(new ByteArrayOutputStream(), "cached.html");
+        int sizeAfterFirst = StaticFileHandler.getCacheStats().entries;
+
+        // Act - Andra anropet (cache hit)
+        handler.sendGetRequest(new ByteArrayOutputStream(), "cached.html");
+        int sizeAfterSecond = StaticFileHandler.getCacheStats().entries;
+
+        // Assert - Cache ska innehålla samma entry
+        assertThat(sizeAfterFirst).isEqualTo(1);
+        assertThat(sizeAfterSecond).isEqualTo(1);
+    }
+
+    @Test
+    void testSanitization_QueryString() throws IOException {
+        // Arrange
+        Files.writeString(tempDir.resolve("index.html"), "Home");
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        // Act - URI med query string
+        handler.sendGetRequest(output, "index.html?foo=bar");
+
+        // Assert
+        assertThat(output.toString()).contains("HTTP/1.1 200");
+    }
+
+    @Test
+    void testSanitization_LeadingSlash() throws IOException {
+        // Arrange
+        Files.writeString(tempDir.resolve("page.html"), "Page");
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        // Act
+        handler.sendGetRequest(output, "/page.html");
+
+        // Assert
+        assertThat(output.toString()).contains("HTTP/1.1 200");
+    }
+
+    @Test
+    void testSanitization_NullBytes() throws IOException {
+        // Arrange
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        // Act
+        handler.sendGetRequest(output, "file.html\0../../secret");
+
+        // Assert
+        assertThat(output.toString()).contains("HTTP/1.1 404");
+    }
+
+    @Test
+    void testConcurrent_MultipleReads() throws InterruptedException, IOException {
+        // Arrange
+        Files.writeString(tempDir.resolve("shared.html"), "Data");
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+
+        // Förvärmning
+        handler.sendGetRequest(new ByteArrayOutputStream(), "shared.html");
+
+        // Act - 10 trådar läser samma fil 50 gånger varje
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i < 10; i++) {
+            threads[i] = new Thread(() -> {
+                try {
+                    for (int j = 0; j < 50; j++) {
+                        ByteArrayOutputStream out = new ByteArrayOutputStream();
+                        handler.sendGetRequest(out, "shared.html");
+                        assertThat(out.toString()).contains("200");
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            threads[i].start();
+        }
+
+        // Vänta på alla trådar
+        for (Thread t : threads) {
+            t.join();
+        }
+
+        // Assert - Cache ska bara ha EN entry
+        assertThat(StaticFileHandler.getCacheStats().entries).isEqualTo(1);
+    }
+
+@Test
     void test_file_that_exists_should_return_200() throws IOException {
         //Arrange
         Path testFile = tempDir.resolve("test.html"); // Defines the path in the temp directory
