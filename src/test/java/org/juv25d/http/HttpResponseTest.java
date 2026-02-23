@@ -16,12 +16,12 @@ public class HttpResponseTest {
 
     @Test
     void shouldReturnDefaultStatusCode() {
-        assertEquals(0, response.statusCode());
+        assertEquals(200, response.statusCode());
     }
 
     @Test
     void shouldReturnDefaultText() {
-        assertEquals("", response.statusText());
+        assertEquals("OK", response.statusText());
     }
 
     @Test
