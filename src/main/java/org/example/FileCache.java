@@ -2,9 +2,10 @@ package org.example;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class FileCache {
-    private final Map<String, byte []> cache = new HashMap<>();
+    private final ConcurrentHashMap<String, byte []> cache = new ConcurrentHashMap<>();
 
     public boolean contains (String key) {
         return cache.containsKey(key);
