@@ -7,10 +7,9 @@ public class CacheFilter {
     
     public byte[] getOrFetch(String uri, FileProvider provider) throws IOException {
         if (cache.contains(uri)) {
-            System.out.println("✓ Cache hit for: " + uri);
+            System.out.println("Cache hit for: " + uri);
             return cache.get(uri);
         }
-        System.out.println("✗ Cache miss for: " + uri);
         byte[] fileBytes = provider.fetch(uri);
         cache.put(uri, fileBytes);
         return fileBytes;
