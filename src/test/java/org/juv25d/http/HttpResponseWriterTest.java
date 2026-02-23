@@ -55,5 +55,4 @@ public class HttpResponseWriterTest {
 
         assertThat(result).startsWith("HTTP/1.1 404 Not Found");
     }
-
 }

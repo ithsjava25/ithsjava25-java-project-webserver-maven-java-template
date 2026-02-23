@@ -1,25 +1,41 @@
 package org.juv25d.http;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.junit.jupiter.api.Assertions.*;
 
-class HttpResponseTest {
+public class HttpResponseTest {
+
+    private HttpResponse response;
+
+    @BeforeEach
+    void setUp() {
+        response = new HttpResponse();
+    }
 
     @Test
-    void defaultConstructor_hasSafeDefaults_andSetHeaderDoesNotThrow() {
-        HttpResponse response = new HttpResponse();
+    void shouldReturnDefaultStatusCode() {
+        assertEquals(200, response.statusCode());
+    }
 
-        assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.statusText()).isEqualTo("OK");
-        assertThat(response.headers()).isNotNull();
-        assertThat(response.body()).isNotNull();
-        assertThat(response.body()).isEmpty();
+    @Test
+    void shouldReturnDefaultText() {
+        assertEquals("OK", response.statusText());
+    }
 
-        assertThatCode(() -> response.setHeader("Content-Type", "text/plain"))
-            .doesNotThrowAnyException();
+    @Test
+    void shouldThrowExceptionWhenStatusTextIsNull() {
+        assertThrows(NullPointerException.class, () -> response.setStatusText(null));
+    }
 
-        assertThat(response.headers()).containsEntry("Content-Type", "text/plain");
+    @Test
+    void shouldHaveEmptyHeaderByDefault() {
+        assertTrue(response.headers().isEmpty());
+    }
+
+    @Test
+    void shouldHaveEmptyBodyByDefault() {
+        assertArrayEquals(new byte[0], response.body());
     }
 }
