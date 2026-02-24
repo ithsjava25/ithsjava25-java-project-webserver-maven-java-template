@@ -11,6 +11,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 
+import static org.example.http.HttpResponseBuilder.SC_OK;
+import static org.example.http.HttpResponseBuilder.SC_TOO_MANY_REQUESTS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -39,7 +41,7 @@ class RateLimitingFilterTest {
         filter.doFilter(request, response, filterChain);
 
         verify(filterChain, times(1)).doFilter(request, response);
-        assertEquals(200, response.getStatusCode());
+        assertEquals(SC_OK, response.getStatusCode());
     }
 
     @Test
@@ -49,7 +51,7 @@ class RateLimitingFilterTest {
         for(int i = 0; i < 11; i++ )
             filter.doFilter(request, response, filterChain);
 
-        assertEquals(429, response.getStatusCode());
+        assertEquals(SC_TOO_MANY_REQUESTS, response.getStatusCode());
         verify(filterChain, times(10)).doFilter(any(), any());
     }
 
@@ -68,9 +70,9 @@ class RateLimitingFilterTest {
         filter.doFilter(request2, response2, filterChain);
 
         //First request should be 429 because it exceeded the capacity of the bucket (10)
-        assertEquals(429, response.getStatusCode());
+        assertEquals(SC_TOO_MANY_REQUESTS, response.getStatusCode());
         //Second request should be 200
-        assertEquals(200, response2.getStatusCode());
+        assertEquals(SC_OK, response2.getStatusCode());
     }
 
 
