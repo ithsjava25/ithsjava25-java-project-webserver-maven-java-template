@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 /**
  * Filter responsible for limiting the number of requests per client IP.
  * Implements the Token Bucket algorithm using the Bucket4j library.
+ * The capacity of the bucket is 10, and it refills one token per 10 seconds
  */
 
 public class RateLimitingFilter implements Filter {
@@ -41,9 +42,7 @@ public class RateLimitingFilter implements Filter {
             chain.doFilter(request, response);
         } else {
             logger.warning("Limit exceeded per IP: " + clientIp);
-            //todo: cambiar 429 a la nueva configuracion del builder
-            //agregar el rate limit exceeded cuando el ip es privado como vimos en la clase??? ip 172.19
-            response.setStatusCode(429);
+            response.setStatusCode(HttpResponseBuilder.SC_TOO_MANY_REQUESTS);
             response.setBody("429 Too Many Requests: limit of requests exceeded.\n");
         }
     }
