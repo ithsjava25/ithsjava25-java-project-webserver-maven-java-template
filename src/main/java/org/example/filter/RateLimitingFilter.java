@@ -50,7 +50,7 @@ public class RateLimitingFilter implements Filter {
         } else {
             logger.warning("Limit exceeded per IP: " + clientIp);
             response.setStatusCode(HttpResponseBuilder.SC_TOO_MANY_REQUESTS);
-            response.setBody("429 Too Many Requests: limit of requests exceeded.\n");
+            response.setBody("<h1>429 Too Many Requests</h1><p> Limit of requests exceeded.</p>\n");
         }
     }
 
