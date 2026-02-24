@@ -115,22 +115,6 @@ public class CacheFilter {
     }
 
     // Diagnostik-metoder
-    public int getCacheSize() {
-        return cache.size();
-    }
-
-    public long getCurrentBytes() {
-        return currentBytes.get();
-    }
-
-    public long getMaxBytes() {
-        return MAX_CACHE_BYTES;
-    }
-
-    public double getCacheUtilization() {
-        return (double) currentBytes.get() / MAX_CACHE_BYTES * 100;
-    }
-
     public void clearCache() {
         cache.clear();
         currentBytes.set(0);
