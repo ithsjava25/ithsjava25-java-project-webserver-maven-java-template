@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CacheFilter {
     private static final int MAX_CACHE_ENTRIES = 100;
-    private static final long MAX_CACHE_BYTES = 50 * 1024 * 1024; // 50MB
+    private static final long MAX_CACHE_BYTES = 50 * 1024 * 1024;// 50MB
     
     // Lock-free concurrent cache
     private final ConcurrentHashMap<String, CacheEntry> cache = 
