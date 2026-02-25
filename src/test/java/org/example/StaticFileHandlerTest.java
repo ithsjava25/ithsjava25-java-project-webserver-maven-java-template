@@ -13,20 +13,21 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 /**
  * Unit test class for verifying the behavior of the StaticFileHandler class.
+ *
  * This test class ensures that StaticFileHandler correctly handles GET requests
  * for static files, including both cases where the requested file exists and
  * where it does not. Temporary directories and files are utilized in tests to
  * ensure no actual file system dependencies during test execution.
+ *
  * Key functional aspects being tested include:
  * - Correct response status code and content for an existing file.
  * - Correct response status code and fallback behavior for a missing file.
  */
 class StaticFileHandlerTest {
 
-    private StaticFileHandler createHandler(){
+    private StaticFileHandler createHandler() {
         return new StaticFileHandler(tempDir.toString());
     }
 
@@ -37,9 +38,6 @@ class StaticFileHandlerTest {
         return output.toString();
     }
 
-
-    //Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
-    // Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
     @TempDir
     Path tempDir;
 
@@ -48,7 +46,6 @@ class StaticFileHandlerTest {
         // Rensa cache innan varje test för clean state
         StaticFileHandler.clearCache();
     }
-
 
     @Test
     void testCaching_HitOnSecondRequest() throws IOException {
@@ -65,13 +62,11 @@ class StaticFileHandlerTest {
         assertThat(sizeAfterFirst).isEqualTo(sizeAfterSecond).isEqualTo(1);
     }
 
-
     @Test
     void testSanitization_QueryString() throws IOException {
         Files.writeString(tempDir.resolve("index.html"), "Home");
         assertThat(sendRequest("index.html?foo=bar")).contains("HTTP/1.1 200");
     }
-
 
     @Test
     void testSanitization_LeadingSlash() throws IOException {
@@ -79,12 +74,10 @@ class StaticFileHandlerTest {
         assertThat(sendRequest("/page.html")).contains("HTTP/1.1 200");
     }
 
-
     @Test
     void testSanitization_NullBytes() throws IOException {
         assertThat(sendRequest("file.html\0../../secret")).contains("HTTP/1.1 404");
     }
-
 
     @Test
     void testConcurrent_MultipleReads() throws InterruptedException, IOException {
@@ -105,7 +98,7 @@ class StaticFileHandlerTest {
                     for (int j = 0; j < 50; j++) {
                         ByteArrayOutputStream out = new ByteArrayOutputStream();
                         handler.sendGetRequest(out, "shared.html");
-                        assertThat(out.toString()).contains("200");
+                        assertThat(out.toString()).contains("HTTP/1.1 200");
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -119,41 +112,38 @@ class StaticFileHandlerTest {
             });
             threads[i].start();
         }
+
         // Vänta på alla trådar
         for (Thread t : threads) {
             t.join();
         }
+
         // Assert - Check if any child thread had assertion failures
         if (assertionErrors[0] != null) {
             throw assertionErrors[0];
-        }        // Assert - Cache ska bara ha EN entry
+        }
+
+        // Assert - Cache ska bara ha EN entry
         assertThat(StaticFileHandler.getCacheStats().entries).isEqualTo(1);
     }
 
-
     @Test
     void test_file_that_exists_should_return_200() throws IOException {
-        //Arrange
-        Path testFile = tempDir.resolve("test.html"); // Defines the path in the temp directory
-        Files.writeString(testFile, "Hello Test"); // Creates a text in that file
+        // Arrange
+        Path testFile = tempDir.resolve("test.html");
+        Files.writeString(testFile, "Hello Test");
 
-        //Using the new constructor in StaticFileHandler to reroute so the tests uses the temporary folder instead of the hardcoded www
         StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString());
-
-        //Using ByteArrayOutputStream instead of Outputstream during tests to capture the servers response in memory, fake stream
         ByteArrayOutputStream fakeOutput = new ByteArrayOutputStream();
 
-        //Act
-        staticFileHandler.sendGetRequest(fakeOutput, "test.html"); //Get test.html and write the answer to fakeOutput
+        // Act
+        staticFileHandler.sendGetRequest(fakeOutput, "test.html");
 
-        //Assert
-        String response = fakeOutput.toString();//Converts the captured byte stream into a String for verification
-
-        assertTrue(response.contains("HTTP/1.1 200 OK")); // Assert the status
-        assertTrue(response.contains("Hello Test")); //Assert the content in the file
-
-        assertTrue(response.contains("Content-Type: text/html; charset=UTF-8")); // Verify the correct Content-type header
-
+        // Assert
+        String response = fakeOutput.toString();
+        assertTrue(response.contains("HTTP/1.1 200 OK"));
+        assertTrue(response.contains("Hello Test"));
+        assertTrue(response.contains("Content-Type: text/html; charset=UTF-8"));
     }
 
     @Test
@@ -168,14 +158,13 @@ class StaticFileHandlerTest {
         // Assert
         String response = fakeOutput.toString();
         assertTrue(response.contains("HTTP/1.1 404 Not Found"));
-
     }
 
     @Test
     void test_path_traversal_should_return_403() throws IOException {
         // Arrange
         Path secret = tempDir.resolve("secret.txt");
-        Files.writeString(secret,"TOP SECRET");
+        Files.writeString(secret, "TOP SECRET");
         Path webRoot = tempDir.resolve("www");
         Files.createDirectories(webRoot);
         StaticFileHandler handler = new StaticFileHandler(webRoot.toString());
