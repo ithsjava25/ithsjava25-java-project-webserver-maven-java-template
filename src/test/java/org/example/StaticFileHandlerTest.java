@@ -39,6 +39,7 @@ class StaticFileHandlerTest {
 
 
     //Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
+    // Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
     @TempDir
     Path tempDir;
 
@@ -148,7 +149,7 @@ class StaticFileHandlerTest {
         //Assert
         String response = fakeOutput.toString();//Converts the captured byte stream into a String for verification
 
-        assertTrue(response.contains("HTTP/1.1 " + SC_OK +  " OK")); // Assert the status
+        assertTrue(response.contains("HTTP/1.1 200 OK")); // Assert the status
         assertTrue(response.contains("Hello Test")); //Assert the content in the file
 
         assertTrue(response.contains("Content-Type: text/html; charset=UTF-8")); // Verify the correct Content-type header
@@ -157,24 +158,16 @@ class StaticFileHandlerTest {
 
     @Test
     void test_file_that_does_not_exists_should_return_404() throws IOException {
-        //Arrange
-        // Pre-create the mandatory error page in the temp directory to prevent NoSuchFileException
-        Path testFile = tempDir.resolve("pageNotFound.html");
-        Files.writeString(testFile, "Fallback page");
-
-        //Using the new constructor in StaticFileHandler to reroute so the tests uses the temporary folder instead of the hardcoded www
+        // Arrange
         StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString());
-
-        //Using ByteArrayOutputStream instead of Outputstream during tests to capture the servers response in memory, fake stream
         ByteArrayOutputStream fakeOutput = new ByteArrayOutputStream();
 
-        //Act
-        staticFileHandler.sendGetRequest(fakeOutput, "notExistingFile.html"); // Request a file that clearly doesn't exist to trigger the 404 logic
+        // Act
+        staticFileHandler.sendGetRequest(fakeOutput, "notExistingFile.html");
 
-        //Assert
-        String response = fakeOutput.toString();//Converts the captured byte stream into a String for verification
-
-        assertTrue(response.contains("HTTP/1.1 " + SC_NOT_FOUND + " Not Found")); // Assert the status
+        // Assert
+        String response = fakeOutput.toString();
+        assertTrue(response.contains("HTTP/1.1 404 Not Found"));
 
     }
 
@@ -194,7 +187,7 @@ class StaticFileHandlerTest {
         // Assert
         String response = fakeOutput.toString();
         assertFalse(response.contains("TOP SECRET"));
-        assertTrue(response.contains("HTTP/1.1 " + SC_FORBIDDEN + " Forbidden"));
+        assertTrue(response.contains("HTTP/1.1 403 Forbidden"));
     }
 
     @ParameterizedTest
@@ -215,7 +208,7 @@ class StaticFileHandlerTest {
         handler.sendGetRequest(out, uri);
 
         // Assert
-        assertTrue(out.toString().contains("HTTP/1.1 " + SC_OK + " OK"));
+        assertTrue(out.toString().contains("HTTP/1.1 200 OK"));
     }
 
     @Test
@@ -231,7 +224,7 @@ class StaticFileHandlerTest {
 
         // Assert
         String response = out.toString();
-        assertFalse(response.contains("HTTP/1.1 " + SC_OK + " OK"));
-        assertTrue(response.contains("HTTP/1.1 " + SC_NOT_FOUND +  " Not Found"));
+        assertFalse(response.contains("HTTP/1.1 200 OK"));
+        assertTrue(response.contains("HTTP/1.1 404 Not Found"));
     }
 }
