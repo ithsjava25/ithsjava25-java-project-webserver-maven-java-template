@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Rate Limiting Filter responsible for limiting the number of requests per client IP.
@@ -29,11 +30,15 @@ public class RateLimitingFilter implements Filter {
     private static final long REFILL_TOKENS = 1;
     private final Duration refillPeriod = Duration.ofSeconds(10);
     private static final int MAX_BUCKETS_THRESHOLD = 1000;
+    private final AtomicBoolean cleanupStarted = new AtomicBoolean(false);
+    private volatile Thread cleanupThread;
 
     @Override
     public void init() {
         logger.info("RateLimitingFilter initialized with capacity: " + CAPACITY);
-        startCleanupThread();
+        if (cleanupStarted.compareAndSet(false, true)) {
+            cleanupThread = startCleanupThread();
+        }
     }
 
     /**
@@ -66,6 +71,12 @@ public class RateLimitingFilter implements Filter {
 
     @Override
     public void destroy() {
+        Thread t = cleanupThread;
+        if (t != null) {
+            t.interrupt();
+            cleanupThread = null;
+        }
+        cleanupStarted.set(false);
         buckets.clear();
     }
 
@@ -98,8 +109,8 @@ public class RateLimitingFilter implements Filter {
         }
     }
 
-    public void startCleanupThread() {
-        Thread.ofVirtual().start(() -> {
+    public Thread startCleanupThread() {
+        return Thread.ofVirtual().name("rate-limit-cleanup").start(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     //it checks every 10 minutes
