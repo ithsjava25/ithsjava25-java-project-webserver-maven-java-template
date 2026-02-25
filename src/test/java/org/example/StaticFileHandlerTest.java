@@ -28,7 +28,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StaticFileHandlerTest {
 
-    private StaticFileHandler handler;
+    private StaticFileHandler createHandler(){
+        return new StaticFileHandler(tempDir.toString());
+    }
+
+    private String sendRequest(String uri) throws IOException {
+        StaticFileHandler handler = createHandler();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        handler.sendGetRequest(output, uri);
+        return output.toString();
+    }
+
 
     //Junit creates a temporary folder which can be filled with temporary files that gets removed after tests
     @TempDir
@@ -45,60 +55,35 @@ class StaticFileHandlerTest {
     void testCaching_HitOnSecondRequest() throws IOException {
         // Arrange
         Files.writeString(tempDir.resolve("cached.html"), "Content");
-        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
 
-        // Act - Första anropet (cache miss)
-        handler.sendGetRequest(new ByteArrayOutputStream(), "cached.html");
+        // Act
+        sendRequest("cached.html");
         int sizeAfterFirst = StaticFileHandler.getCacheStats().entries;
-
-        // Act - Andra anropet (cache hit)
-        handler.sendGetRequest(new ByteArrayOutputStream(), "cached.html");
+        sendRequest("cached.html");
         int sizeAfterSecond = StaticFileHandler.getCacheStats().entries;
 
-        // Assert - Cache ska innehålla samma entry
-        assertThat(sizeAfterFirst).isEqualTo(1);
-        assertThat(sizeAfterSecond).isEqualTo(1);
+        // Assert
+        assertThat(sizeAfterFirst).isEqualTo(sizeAfterSecond).isEqualTo(1);
     }
+
 
     @Test
     void testSanitization_QueryString() throws IOException {
-        // Arrange
         Files.writeString(tempDir.resolve("index.html"), "Home");
-        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-        // Act - URI med query string
-        handler.sendGetRequest(output, "index.html?foo=bar");
-
-        // Assert
-        assertThat(output.toString()).contains("HTTP/1.1 200");
+        assertThat(sendRequest("index.html?foo=bar")).contains("HTTP/1.1 200");
     }
+
 
     @Test
     void testSanitization_LeadingSlash() throws IOException {
-        // Arrange
         Files.writeString(tempDir.resolve("page.html"), "Page");
-        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-        // Act
-        handler.sendGetRequest(output, "/page.html");
-
-        // Assert
-        assertThat(output.toString()).contains("HTTP/1.1 200");
+        assertThat(sendRequest("/page.html")).contains("HTTP/1.1 200");
     }
+
 
     @Test
     void testSanitization_NullBytes() throws IOException {
-        // Arrange
-        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-        // Act
-        handler.sendGetRequest(output, "file.html\0../../secret");
-
-        // Assert
-        assertThat(output.toString()).contains("HTTP/1.1 404");
+        assertThat(sendRequest("file.html\0../../secret")).contains("HTTP/1.1 404");
     }
 
     @Test

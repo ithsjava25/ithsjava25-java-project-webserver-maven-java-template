@@ -13,7 +13,7 @@ import java.util.Map;
 public class StaticFileHandler {
     private static final String DEFAULT_WEB_ROOT = "www";
     
-    // ✅ EN shared cache för alla threads
+    // EN shared cache för alla threads
     private static final CacheFilter SHARED_CACHE = new CacheFilter();
     
     private final String webRoot;
@@ -28,46 +28,44 @@ public class StaticFileHandler {
     }
 
     public void sendGetRequest(OutputStream outputStream, String uri) throws IOException {
+        String sanitizedUri = sanitizeUri(uri);
+
+        if (isPathTraversal(sanitizedUri)) {
+            sendErrorResponse(outputStream, 403, "Forbidden");
+            return;
+        }
+
         try {
-            String sanitizedUri = sanitizeUri(uri);
-            
-            if (isPathTraversal(sanitizedUri)) {
-                sendErrorResponse(outputStream, 403, "Forbidden");
-                return;
-            }
-            
-            // Använd shared cache istället för ny instans
             byte[] fileBytes = SHARED_CACHE.getOrFetch(sanitizedUri,
-                path -> Files.readAllBytes(new File(webRoot, path).toPath())
+                    path -> Files.readAllBytes(new File(webRoot, path).toPath())
             );
-            
+
             HttpResponseBuilder response = new HttpResponseBuilder();
-            response.setHeaders(Map.of("Content-Type", "text/html; charset=UTF-8"));
+            response.setContentTypeFromFilename(sanitizedUri);
             response.setBody(fileBytes);
             outputStream.write(response.build());
             outputStream.flush();
-            
+
         } catch (IOException e) {
-            try {
-                sendErrorResponse(outputStream, 404, "Not Found");
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            sendErrorResponse(outputStream, 404, "Not Found");
         }
     }
 
     private String sanitizeUri(String uri) {
-        uri = uri.split("\\?")[0];
-        uri = uri.split("#")[0];
-        uri = uri.replace("\0", "");
-        
-        while (uri.startsWith("/")) {
-            uri = uri.substring(1);
-        }
-        
+        // Entydlig: ta bort query string och fragment
+        int queryIndex = uri.indexOf('?');
+        int fragmentIndex = uri.indexOf('#');
+        int endIndex = Math.min(
+                queryIndex > 0 ? queryIndex : uri.length(),
+                fragmentIndex > 0 ? fragmentIndex : uri.length()
+        );
+
+        uri = uri.substring(0, endIndex)
+                .replace("\0", "")
+                .replaceAll("^/+", "");  // Bort med leading slashes
+
         return uri;
     }
-
     private boolean isPathTraversal(String uri) {
         try {
             Path webRootPath = Paths.get(webRoot).toRealPath();
