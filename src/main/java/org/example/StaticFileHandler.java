@@ -1,6 +1,7 @@
 package org.example;
 
 import org.example.http.HttpResponseBuilder;
+import static org.example.http.HttpResponseBuilder.*;
 
 import java.io.File;
 import java.io.IOException;
