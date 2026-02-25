@@ -15,26 +15,23 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class ConnectionHandler implements AutoCloseable {
-
-    Socket client;
-    String uri;
+    private final Socket client;
     private final List<Filter> filters;
 
     public ConnectionHandler(Socket client) {
         this.client = client;
         this.filters = buildFilters();
     }
-private List<Filter> buildFilters() {
+
+    private List<Filter> buildFilters() {
         List<Filter> list = new ArrayList<>();
         AppConfig config = ConfigLoader.get();
         AppConfig.IpFilterConfig ipFilterConfig = config.ipFilter();
         if (Boolean.TRUE.equals(ipFilterConfig.enabled())) {
             list.add(createIpFilterFromConfig(ipFilterConfig));
         }
-        // Add more filters here...
         return list;
-        }
-
+    }
 
     public void runConnectionHandler() throws IOException {
         HttpParser parser = new HttpParser();
@@ -53,6 +50,7 @@ private List<Filter> buildFilters() {
         String clientIp = client.getInetAddress().getHostAddress();
         request.setAttribute("clientIp", clientIp);
 
+        // Apply security filters
         HttpResponseBuilder response = applyFilters(request);
 
         int statusCode = response.getStatusCode();
@@ -64,29 +62,47 @@ private List<Filter> buildFilters() {
             return;
         }
 
-        resolveTargetFile(parser.getUri());
+        // Sanitize URI here (clean it)
+        String sanitizedUri = sanitizeUri(parser.getUri());
+        String cacheKey = "www:" + sanitizedUri;
+
+        // Check cache FIRST
+        byte[] cachedBytes = FileCache.get(cacheKey);
+        if (cachedBytes != null) {
+            System.out.println("✓ Cache HIT: " + sanitizedUri);
+            HttpResponseBuilder cachedResp = new HttpResponseBuilder();
+            cachedResp.setContentTypeFromFilename(sanitizedUri);
+            cachedResp.setBody(cachedBytes);
+            client.getOutputStream().write(cachedResp.build());
+            client.getOutputStream().flush();
+            return;
+        }
+
+        // Cache miss - StaticFileHandler reads and caches
+        System.out.println("✗ Cache MISS: " + sanitizedUri);
         StaticFileHandler sfh = new StaticFileHandler();
-        sfh.sendGetRequest(client.getOutputStream(), uri);
+        sfh.sendGetRequest(client.getOutputStream(), sanitizedUri);
+    }
+
+    private String sanitizeUri(String uri) {
+        if (uri == null || uri.isEmpty()) return "index.html";
+
+        int endIndex = Math.min(
+                uri.indexOf('?') < 0 ? uri.length() : uri.indexOf('?'),
+                uri.indexOf('#') < 0 ? uri.length() : uri.indexOf('#')
+        );
+
+        return uri.substring(0, endIndex)
+                .replace("\0", "")
+                .replaceAll("^/+", "")
+                .replaceAll("^$", "index.html");
     }
 
     private HttpResponseBuilder applyFilters(HttpRequest request) {
         HttpResponseBuilder response = new HttpResponseBuilder();
-
         FilterChainImpl chain = new FilterChainImpl(filters);
         chain.doFilter(request, response);
-
         return response;
-    }
-
-    private void resolveTargetFile(String uri) {
-        if (uri.matches("/$")) { //matches(/)
-            this.uri = "index.html";
-        } else if (uri.matches("^(?!.*\\.html$).*$")) {
-            this.uri = uri.concat(".html");
-        } else {
-            this.uri = uri;
-        }
-
     }
 
     @Override
@@ -97,19 +113,16 @@ private List<Filter> buildFilters() {
     private IpFilter createIpFilterFromConfig(AppConfig.IpFilterConfig config) {
         IpFilter filter = new IpFilter();
 
-        // Set mode
         if ("ALLOWLIST".equalsIgnoreCase(config.mode())) {
             filter.setMode(IpFilter.FilterMode.ALLOWLIST);
         } else {
             filter.setMode(IpFilter.FilterMode.BLOCKLIST);
         }
 
-        // Add blocked IPs
         for (String ip : config.blockedIps()) {
             filter.addBlockedIp(ip);
         }
 
-        // Add allowed IPs
         for (String ip : config.allowedIps()) {
             filter.addAllowedIp(ip);
         }
