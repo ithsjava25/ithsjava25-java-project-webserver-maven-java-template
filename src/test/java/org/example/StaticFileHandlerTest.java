@@ -16,12 +16,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit test class for verifying the behavior of the StaticFileHandler class.
- *
  * This test class ensures that StaticFileHandler correctly handles GET requests
  * for static files, including both cases where the requested file exists and
  * where it does not. Temporary directories and files are utilized in tests to
  * ensure no actual file system dependencies during test execution.
- *
  * Key functional aspects being tested include:
  * - Correct response status code and content for an existing file.
  * - Correct response status code and fallback behavior for a missing file.

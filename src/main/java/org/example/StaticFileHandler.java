@@ -44,8 +44,9 @@ public class StaticFileHandler {
             // Cache-nyckel inkluderar nu webRoot för att undvika collisions
             String cacheKey = generateCacheKey(sanitizedUri);
             byte[] fileBytes = SHARED_CACHE.getOrFetch(cacheKey,
-                    path -> Files.readAllBytes(new File(webRoot, sanitizedUri).toPath())
+                    ignoredPath -> Files.readAllBytes(new File(webRoot, sanitizedUri).toPath())
             );
+
 
             HttpResponseBuilder response = new HttpResponseBuilder();
             response.setContentTypeFromFilename(sanitizedUri);
