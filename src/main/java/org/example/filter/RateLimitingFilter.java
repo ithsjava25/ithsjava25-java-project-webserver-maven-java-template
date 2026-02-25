@@ -27,7 +27,7 @@ public class RateLimitingFilter implements Filter {
     private static final Map<String, BucketWrapper> buckets = new ConcurrentHashMap<>();
     private static final long CAPACITY = 10;
     private static final long REFILL_TOKENS = 1;
-    private final Duration REFILL_PERIOD = Duration.ofSeconds(10);
+    private final Duration refillPeriod = Duration.ofSeconds(10);
     private static final int MAX_BUCKETS_THRESHOLD = 1000;
 
     @Override
@@ -76,13 +76,9 @@ public class RateLimitingFilter implements Filter {
         return Bucket.builder()
                 .addLimit(Bandwidth.builder()
                         .capacity(CAPACITY)
-                        .refillGreedy(REFILL_TOKENS, REFILL_PERIOD)
+                        .refillGreedy(REFILL_TOKENS, refillPeriod)
                         .build())
                 .build();
-    }
-
-    public void clearBuckets(){
-             buckets.clear();
     }
 
     /**
@@ -102,27 +98,40 @@ public class RateLimitingFilter implements Filter {
         }
     }
 
-    private void startCleanupThread() {
-        Thread cleanupThread = new Thread(() -> {
+    public void startCleanupThread() {
+        Thread.ofVirtual().start(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     //it checks every 10 minutes
                     Thread.sleep(Duration.ofMinutes(10).toMillis());
 
-                    //it will only clean when the size of the buckets is more than 1000
-                    if (buckets.size() > MAX_BUCKETS_THRESHOLD) {
-                        long idleThreshold = System.currentTimeMillis() - Duration.ofMinutes(30).toMillis();
-                        buckets.entrySet().removeIf(entry -> entry.getValue().lastAccessTime < idleThreshold);
-                    }
+                    cleanupIdleBuckets();
 
-
-                } catch (InterruptedException e) {
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
+                    break;
                 }
             }
         });
-        cleanupThread.setDaemon(true);
-        cleanupThread.start();
+    }
+
+    public void cleanupIdleBuckets() {
+        //it will only clean when the size of the buckets is more than 1000
+        if (buckets.size() > MAX_BUCKETS_THRESHOLD) {
+            long idleThreshold = System.currentTimeMillis() - Duration.ofMinutes(30).toMillis();
+            buckets.entrySet().removeIf(entry -> entry.getValue().lastAccessTime < idleThreshold);
+        }
+    }
+
+    public int getBucketsCount() {
+        return buckets.size();
+    }
+
+    public void ageBucketsForTesting(long millisToSubtract) {
+        for (BucketWrapper wrapper : buckets.values()) {
+            long oldTime = wrapper.lastAccessTime;
+            wrapper.lastAccessTime = oldTime - millisToSubtract;
+        }
     }
 
 }
