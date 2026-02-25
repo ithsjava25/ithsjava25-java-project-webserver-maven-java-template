@@ -139,7 +139,6 @@ public class CacheFilter {
         }
     }
 
-
     /**
      * Rensa cache atomärt
      */
