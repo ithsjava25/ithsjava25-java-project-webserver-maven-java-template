@@ -24,20 +24,21 @@ import java.util.logging.Logger;
 
 public class RateLimitingFilter implements Filter {
     private static final Logger logger = Logger.getLogger(RateLimitingFilter.class.getName());
-    private static final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
-    private static final long capacity = 10;
-    private static final long refillTokens = 1;
-    private final Duration refillPeriod = Duration.ofSeconds(10);
+    private static final Map<String, BucketWrapper> buckets = new ConcurrentHashMap<>();
+    private static final long CAPACITY = 10;
+    private static final long REFILL_TOKENS = 1;
+    private final Duration REFILL_PERIOD = Duration.ofSeconds(10);
+    private static final int MAX_BUCKETS_THRESHOLD = 1000;
 
     @Override
     public void init() {
-        logger.info("RateLimitingFilter initialized with capacity: " + capacity);
+        logger.info("RateLimitingFilter initialized with capacity: " + CAPACITY);
+        startCleanupThread();
     }
 
     /**
      * Intercepts the request and checks if the client has enough tokens.
      */
-
     @Override
     public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
 
@@ -49,9 +50,12 @@ public class RateLimitingFilter implements Filter {
             }
 
         String clientIp = (String) clientIpAttr;
-        Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
 
-        if (bucket.tryConsume(1)) {
+        BucketWrapper wrapper = buckets.computeIfAbsent(clientIp, k -> new BucketWrapper(createNewBucket()));
+
+        wrapper.updateAccess();
+
+        if (wrapper.bucket.tryConsume(1)) {
             chain.doFilter(request, response);
         } else {
             logger.warning("Limit exceeded per IP: " + clientIp);
@@ -71,8 +75,8 @@ public class RateLimitingFilter implements Filter {
     private Bucket createNewBucket() {
         return Bucket.builder()
                 .addLimit(Bandwidth.builder()
-                        .capacity(capacity)
-                        .refillGreedy(refillTokens, refillPeriod)
+                        .capacity(CAPACITY)
+                        .refillGreedy(REFILL_TOKENS, REFILL_PERIOD)
                         .build())
                 .build();
     }
@@ -80,4 +84,45 @@ public class RateLimitingFilter implements Filter {
     public void clearBuckets(){
              buckets.clear();
     }
+
+    /**
+     * Track the last access time of every bucket
+     */
+    private static class BucketWrapper {
+        private final Bucket bucket;
+        private volatile long lastAccessTime;
+
+        BucketWrapper(Bucket bucket) {
+            this.bucket = bucket;
+            this.lastAccessTime = System.currentTimeMillis();
+        }
+
+        void updateAccess() {
+            this.lastAccessTime = System.currentTimeMillis();
+        }
+    }
+
+    private void startCleanupThread() {
+        Thread cleanupThread = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    //it checks every 10 minutes
+                    Thread.sleep(Duration.ofMinutes(10).toMillis());
+
+                    //it will only clean when the size of the buckets is more than 1000
+                    if (buckets.size() > MAX_BUCKETS_THRESHOLD) {
+                        long idleThreshold = System.currentTimeMillis() - Duration.ofMinutes(30).toMillis();
+                        buckets.entrySet().removeIf(entry -> entry.getValue().lastAccessTime < idleThreshold);
+                    }
+
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        cleanupThread.setDaemon(true);
+        cleanupThread.start();
+    }
+
 }
