@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.net.http.HttpResponse;
 import java.util.HashMap;
 
 import static org.example.http.HttpResponseBuilder.SC_OK;
@@ -32,11 +30,11 @@ class RateLimitingFilterTest {
         request = new HttpRequest("GET", "/", "HTTP/1.1", new HashMap<>(), "");
         request.setAttribute("clientIp", "127.0.0.1");
         response = new HttpResponseBuilder();
-        filter.clearBuckets();
+        filter.destroy();
     }
 
     @Test
-    void shouldAllowRequestWhenTokensAreAvailable(){
+    void shouldAllowRequest_WhenTokensAreAvailable(){
 
         filter.doFilter(request, response, filterChain);
 
@@ -45,7 +43,7 @@ class RateLimitingFilterTest {
     }
 
     @Test
-    void shouldNotAllowRequestWhenTokensAreNotAvailable(){
+    void shouldNotAllowRequest_WhenTokensAreNotAvailable(){
 
         //capacity of the bucket is 10
         for(int i = 0; i < 11; i++ )
@@ -75,5 +73,66 @@ class RateLimitingFilterTest {
         assertEquals(SC_OK, response2.getStatusCode());
     }
 
+    @Test
+    void shouldDeleteOldBuckets_WhenSizeIsMoreThanThreshold(){
 
+        filter.init();
+
+        for(int i = 0; i < 1001; i++ ){
+            String fakeIp = "192.168.1." + i;
+            request.setAttribute("clientIp", fakeIp);
+            filter.doFilter(request, response, filterChain);
+        }
+
+        assertEquals(1001, filter.getBucketsCount());
+
+        filter.ageBucketsForTesting(3600000);
+        filter.cleanupIdleBuckets();
+
+        assertEquals(0, filter.getBucketsCount());
+    }
+
+    @Test
+    void shouldNotDeleteOldBuckets_WhenSizeIsLessThanThreshold(){
+        filter.init();
+
+        for(int i = 0; i < 1000; i++ ){
+            String fakeIp = "192.168.1." + i;
+            request.setAttribute("clientIp", fakeIp);
+            filter.doFilter(request, response, filterChain);
+        }
+
+        assertEquals(1000, filter.getBucketsCount());
+
+        filter.ageBucketsForTesting(3600000);
+        filter.cleanupIdleBuckets();
+
+        assertEquals(1000, filter.getBucketsCount());
+
+    }
+
+    @Test
+    void shouldDeleteOnlyExpiredBuckets_WhenAreOld(){
+        filter.init();
+
+        for(int i = 0; i < 1001; i++ ){
+            String fakeIp = "192.168.1." + i;
+            request.setAttribute("clientIp", fakeIp);
+            filter.doFilter(request, response, filterChain);
+        }
+
+        assertEquals(1001, filter.getBucketsCount());
+
+        filter.ageBucketsForTesting(3600000);
+
+        for(int i = 0; i < 500; i++ ){
+            String fakeIp = "192.168.1." + i;
+            request.setAttribute("clientIp", fakeIp);
+            filter.doFilter(request, response, filterChain);
+        }
+
+        filter.cleanupIdleBuckets();
+
+        assertEquals(500, filter.getBucketsCount());
+    }
 }
