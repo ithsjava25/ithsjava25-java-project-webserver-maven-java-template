@@ -15,6 +15,8 @@ public class HttpResponse {
     private byte[] body;
 
     public HttpResponse(){
+        this.statusCode = 200;
+        this.statusText = "OK";
         this.headers = new LinkedHashMap<>();
         this.body = new byte[0];
     }

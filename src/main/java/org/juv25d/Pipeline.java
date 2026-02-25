@@ -4,6 +4,7 @@ import org.juv25d.filter.Filter;
 import org.juv25d.filter.FilterChainImpl;
 import org.juv25d.http.HttpRequest;
 import org.juv25d.router.Router; // New import
+import org.juv25d.router.SimpleRouter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,7 +19,7 @@ public class Pipeline {
     private final List<FilterRegistration> globalFilters = new CopyOnWriteArrayList<>();
     private final Map<String, List<FilterRegistration>> routeFilters = new ConcurrentHashMap<>();
     private volatile List<Filter> sortedGlobalFilters = List.of();
-    private volatile Router router; // Changed from Plugin plugin;
+    private volatile Router router = new SimpleRouter(); // Changed from Plugin plugin;
 
     public void addGlobalFilter(Filter filter, int order) {
         globalFilters.add(new FilterRegistration(filter, order, null));

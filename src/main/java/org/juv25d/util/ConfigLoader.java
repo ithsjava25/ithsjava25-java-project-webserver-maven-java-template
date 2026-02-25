@@ -1,15 +1,17 @@
 package org.juv25d.util;
 
+import org.jspecify.annotations.Nullable;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
 import java.util.Map;
 
 public class ConfigLoader {
+    @Nullable
     private static ConfigLoader instance;
     private int port;
-    private String logLevel;
-    private String rootDirectory;
+    private String logLevel = "INFO";
+    private String rootDirectory = "static";
     private long requestsPerMinute;
     private long burstCapacity;
     private boolean rateLimitingEnabled;
@@ -45,7 +47,7 @@ public class ConfigLoader {
             // logging
             Map<String, Object> loggingConfig = (Map<String, Object>) config.get("logging");
             if (loggingConfig != null) {
-                this.logLevel = (String) loggingConfig.get("level");
+                this.logLevel = (String) loggingConfig.getOrDefault("level", "INFO");
             }
 
             // rate-limiting
