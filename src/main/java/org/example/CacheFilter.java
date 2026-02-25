@@ -2,6 +2,7 @@
 package org.example;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -124,10 +125,7 @@ public class CacheFilter {
 
         // Hitta entry med minst senaste access
         String keyToRemove = cache.entrySet().stream()
-                .min((a, b) -> Long.compare(
-                        a.getValue().lastAccessTime.get(),
-                        b.getValue().lastAccessTime.get()
-                ))
+                .min(Comparator.comparingLong(e -> e.getValue().lastAccessTime.get()))
                 .map(java.util.Map.Entry::getKey)
                 .orElse(null);
 
@@ -140,6 +138,7 @@ public class CacheFilter {
             }
         }
     }
+
 
     /**
      * Rensa cache atomärt
