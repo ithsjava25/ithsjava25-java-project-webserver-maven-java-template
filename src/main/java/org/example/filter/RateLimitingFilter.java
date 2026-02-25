@@ -41,8 +41,14 @@ public class RateLimitingFilter implements Filter {
     @Override
     public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
 
-        String clientIp = (String) request.getAttribute("clientIp");
+        Object clientIpAttr = request.getAttribute("clientIp");
+        if (!(clientIpAttr instanceof String) || ((String) clientIpAttr).isBlank()) {
+            response.setStatusCode(HttpResponseBuilder.SC_BAD_REQUEST);
+            response.setBody("<h1>400 Bad Request</h1><p>Missing client IP.</p>\n");
+            return;
+            }
 
+        String clientIp = (String) clientIpAttr;
         Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
 
         if (bucket.tryConsume(1)) {
