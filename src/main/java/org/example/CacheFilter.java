@@ -155,6 +155,7 @@ public class CacheFilter implements FileCache {
         }
     }
 
+    @Override
     public CacheStats getStats() {
         long totalAccesses = cache.values().stream()
                 .mapToLong(e -> e.accessCount.get())
@@ -167,36 +168,5 @@ public class CacheFilter implements FileCache {
                 MAX_CACHE_BYTES,
                 totalAccesses
         );
-    }
-
-    // Stats-klass
-    public static class CacheStats {
-        public final int entries;
-        public final long bytes;
-        public final int maxEntries;
-        public final long maxBytes;
-        public final long totalAccesses;
-
-        CacheStats(int entries, long bytes, int maxEntries, long maxBytes, long totalAccesses) {
-            this.entries = entries;
-            this.bytes = bytes;
-            this.maxEntries = maxEntries;
-            this.maxBytes = maxBytes;
-            this.totalAccesses = totalAccesses;
-        }
-
-        @Override
-        public String toString() {
-            return String.format(
-                    "CacheStats{entries=%d/%d, bytes=%d/%d, utilization=%.1f%%, accesses=%d}",
-                    entries, maxEntries, bytes, maxBytes,
-                    (double) bytes / maxBytes * 100, totalAccesses
-            );
-        }
-    }
-
-    @FunctionalInterface
-    public interface FileProvider {
-        byte[] fetch(String uri) throws IOException;
     }
 }
