@@ -87,7 +87,7 @@ class StaticFileHandlerTest {
 
         handler.sendGetRequest(new ByteArrayOutputStream(), "shared.html");
 
-        // Act - 10 trådar läser samma fil 50 gånger varje
+        // Act - 10 threads reading same file 50 times each
         Thread[] threads = new Thread[10];
         final Exception[] threadError = new Exception[1];
 
@@ -100,7 +100,7 @@ class StaticFileHandlerTest {
                         String response = out.toString();
 
                         if (!response.contains("HTTP/1.1 200") || !response.contains("Data")) {
-                            throw new AssertionError("Oväntad response");
+                            throw new AssertionError("Unexpected response");
                         }
                     }
                 } catch (Exception e) {
@@ -111,7 +111,15 @@ class StaticFileHandlerTest {
             });
             threads[i].start();
         }
+    
+    // Wait for all threads to complete
+    for (Thread thread : threads) {
+        thread.join();
     }
+    
+    // Assert
+    assertNull(threadError[0], "Thread threw exception: " + (threadError[0] != null ? threadError[0].getMessage() : ""));
+}
 
     @Test
     void test_file_that_exists_should_return_200() throws IOException {

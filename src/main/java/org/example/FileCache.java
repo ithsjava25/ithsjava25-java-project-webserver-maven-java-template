@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FileCache {
     private static final ConcurrentHashMap<String, byte[]> cache = new ConcurrentHashMap<>();
 
+    private FileCache() {}
+
     public static byte[] get(String key) {
         return cache.get(key);
     }
@@ -16,9 +18,5 @@ public class FileCache {
     public static void clear() {
         cache.clear();
     }
-    public static void clearCache() {
-        FileCache.clear();
-    }
-
 }
 

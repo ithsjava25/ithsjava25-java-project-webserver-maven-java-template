@@ -8,6 +8,8 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.NoSuchFileException;
+
 
 public class StaticFileHandler {
     private static final String DEFAULT_WEB_ROOT = "www";
@@ -44,10 +46,13 @@ public class StaticFileHandler {
             outputStream.write(response.build());
             outputStream.flush();
 
-        } catch (IOException e) {
+        } catch (NoSuchFileException e) {
             writeResponse(outputStream, 404, "Not Found");
+        } catch (IOException e) {
+            writeResponse(outputStream, 500, "Internal Server Error");
         }
     }
+
 
     private String sanitizeUri(String uri) {
         if (uri == null || uri.isEmpty()) return "index.html";
