@@ -46,6 +46,11 @@ public interface FileCache {
         public final long maxBytes;
         public final long totalAccesses;
 
+        // Default-konstruktor för empty stats
+        public CacheStats() {
+            this(0, 0, 100, 50 * 1024 * 1024, 0);
+        }
+
         public CacheStats(int entries, long bytes, int maxEntries, long maxBytes, long totalAccesses) {
             this.entries = entries;
             this.bytes = bytes;

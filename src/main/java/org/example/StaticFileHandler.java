@@ -133,7 +133,8 @@ public class StaticFileHandler {
 
     //Diagnostik-metod
     public static FileCache.CacheStats getCacheStats() {
-        return SHARED_CACHE.getStats();
+        FileCache.CacheStats stats = SHARED_CACHE.getStats();
+        return stats != null ? stats : new FileCache.CacheStats();
     }
 
     public static void clearCache() {

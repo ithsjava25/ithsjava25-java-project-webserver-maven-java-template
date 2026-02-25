@@ -6,8 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Thread-safe in-memory cache filter using ConcurrentHashMap
@@ -154,79 +152,19 @@ public class CacheFilter implements FileCache {
             currentBytes.set(0);
         }
     }
-    /**
-     * Cache statistics record.
-     */
+
     @Override
     public FileCache.CacheStats getStats() {
-        return null;
-    }
+        long totalAccesses = cache.values().stream()
+                .mapToLong(e -> e.accessCount.get())
+                .sum();
 
-
-    class CacheStats {
-        public final int entries;
-        public final long bytes;
-        public final int maxEntries;
-        public final long maxBytes;
-        public final long totalAccesses;
-
-        public CacheStats(int entries, long bytes, int maxEntries, long maxBytes, long totalAccesses) {
-            this.entries = entries;
-            this.bytes = bytes;
-            this.maxEntries = maxEntries;
-            this.maxBytes = maxBytes;
-            this.totalAccesses = totalAccesses;
-        }
-
-        @Override
-        public String toString() {
-            String bytesFormatted = formatBytes(bytes);
-            String maxBytesFormatted = formatBytes(maxBytes);
-            
-            return String.format(
-                    "CacheStats{entries=%d/%d, bytes=%s/%s, utilization=%.1f%%, accesses=%d}",
-                    entries, maxEntries, bytesFormatted, maxBytesFormatted,
-                    (double) bytes / maxBytes * 100, totalAccesses
-            );
-        }
-
-        private static String formatBytes(long bytes) {
-            if (bytes <= 0) return "0 B";
-            final String[] units = new String[]{"B", "KB", "MB", "GB"};
-            int digitGroups = (int) (Math.log10(bytes) / Math.log10(1024));
-            return String.format("%.1f %s", bytes / Math.pow(1024, digitGroups), units[digitGroups]);
-        }
-    }
-
-    /**
-     * Sanitizes URI by removing query strings, fragments, null bytes, and leading slashes.
-     * Also performs URL-decoding to normalize percent-encoded sequences.
-     */
-    private String sanitizeUri(String uri) {
-        if (uri == null || uri.isEmpty()) {
-            return "index.html";
-        }
-
-        // Ta bort query string och fragment
-        int queryIndex = uri.indexOf('?');
-        int fragmentIndex = uri.indexOf('#');
-        int endIndex = Math.min(
-                queryIndex > 0 ? queryIndex : uri.length(),
-                fragmentIndex > 0 ? fragmentIndex : uri.length()
+        return new FileCache.CacheStats(
+                cache.size(),
+                currentBytes.get(),
+                MAX_CACHE_ENTRIES,
+                MAX_CACHE_BYTES,
+                totalAccesses
         );
-
-        uri = uri.substring(0, endIndex)
-                .replace("\0", "")
-                .replaceAll("^/+", "");  // Bort med leading slashes
-
-        // URL-decode för att normalisera percent-encoded sequences (t.ex. %2e%2e -> ..)
-        try {
-            uri = URLDecoder.decode(uri, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Ogiltig URL-kodning i URI: " + uri);
-            // Returna som den är om avkodning misslyckas; isPathTraversal kommer hantera det
-        }
-
-        return uri.isEmpty() ? "index.html" : uri;
     }
 }
