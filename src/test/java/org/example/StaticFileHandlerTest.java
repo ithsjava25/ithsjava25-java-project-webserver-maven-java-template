@@ -86,6 +86,7 @@ class StaticFileHandlerTest {
         assertThat(sendRequest("file.html\0../../secret")).contains("HTTP/1.1 404");
     }
 
+
     @Test
     void testConcurrent_MultipleReads() throws InterruptedException, IOException {
         // Arrange
@@ -97,6 +98,8 @@ class StaticFileHandlerTest {
 
         // Act - 10 trådar läser samma fil 50 gånger varje
         Thread[] threads = new Thread[10];
+        final AssertionError[] assertionErrors = new AssertionError[1];
+
         for (int i = 0; i < 10; i++) {
             threads[i] = new Thread(() -> {
                 try {
@@ -107,21 +110,29 @@ class StaticFileHandlerTest {
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                } catch (AssertionError e) {
+                    // Capture assertion errors from child thread
+                    synchronized (threads) {
+                        assertionErrors[0] = e;
+                    }
+                    throw e;
                 }
             });
             threads[i].start();
         }
-
         // Vänta på alla trådar
         for (Thread t : threads) {
             t.join();
         }
-
-        // Assert - Cache ska bara ha EN entry
+        // Assert - Check if any child thread had assertion failures
+        if (assertionErrors[0] != null) {
+            throw assertionErrors[0];
+        }        // Assert - Cache ska bara ha EN entry
         assertThat(StaticFileHandler.getCacheStats().entries).isEqualTo(1);
     }
 
-@Test
+
+    @Test
     void test_file_that_exists_should_return_200() throws IOException {
         //Arrange
         Path testFile = tempDir.resolve("test.html"); // Defines the path in the temp directory

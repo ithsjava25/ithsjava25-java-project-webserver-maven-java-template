@@ -5,12 +5,16 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
- * Thread-safe cache filter using ConcurrentHashMap
+ * Thread-safe in-memory cache filter using ConcurrentHashMap
  * Handles caching with LRU eviction for large files
+ * Implements the FileCache interface for pluggable cache implementations
  */
-public class CacheFilter {
+public class CacheFilter implements FileCache {
+    private static final Logger LOGGER = Logger.getLogger(CacheFilter.class.getName());
     private static final int MAX_CACHE_ENTRIES = 100;
     private static final long MAX_CACHE_BYTES = 50 * 1024 * 1024;// 50MB
 
@@ -45,12 +49,13 @@ public class CacheFilter {
      * Hämta från cache eller fetch från provider (thread-safe)
      * Använder double-checked locking för att undvika TOCTOU-race
      */
+    @Override
     public byte[] getOrFetch(String uri, FileProvider provider) throws IOException {
         // First check - lock-free read (snabb väg)
         CacheEntry entry = cache.get(uri);
         if (entry != null) {
             entry.recordAccess();
-            System.out.println("✓ Cache hit for: " + uri);
+            LOGGER.log(Level.FINE, "✓ Cache hit for: " + uri);
             return entry.data;
         }
 
@@ -60,12 +65,12 @@ public class CacheFilter {
             entry = cache.get(uri);
             if (entry != null) {
                 entry.recordAccess();
-                System.out.println("✓ Cache hit for: " + uri + " (from concurrent fetch)");
+                LOGGER.log(Level.FINE, "✓ Cache hit for: " + uri + " (from concurrent fetch)");
                 return entry.data;
             }
 
             // Fetch och cachelagra
-            System.out.println("✗ Cache miss for: " + uri);
+            LOGGER.log(Level.FINE, "✗ Cache miss for: " + uri);
             byte[] fileBytes = provider.fetch(uri);
 
             if (fileBytes != null) {
@@ -82,7 +87,7 @@ public class CacheFilter {
     private void addToCacheUnsafe(String uri, byte[] data) {
         // Guard mot oversized entries som kan blockera eviction
         if (data.length > MAX_CACHE_BYTES) {
-            System.out.println("⚠️ Skipping cache for oversized file: " + uri +
+            LOGGER.log(Level.WARNING, "⚠️ Skipping cache for oversized file: " + uri +
                     " (" + (data.length / 1024 / 1024) + "MB > " +
                     (MAX_CACHE_BYTES / 1024 / 1024) + "MB)");
             return;
@@ -95,7 +100,7 @@ public class CacheFilter {
 
         // Om cache fortfarande är full efter eviction, hoppa över
         if (shouldEvict(data)) {
-            System.out.println("⚠️ Cache full, skipping: " + uri);
+            LOGGER.log(Level.WARNING, "⚠️ Cache full, skipping: " + uri);
             return;
         }
 
@@ -133,7 +138,7 @@ public class CacheFilter {
             CacheEntry removed = cache.remove(keyToRemove);
             if (removed != null) {
                 currentBytes.addAndGet(-removed.data.length);
-                System.out.println("✗ Evicted from cache: " + keyToRemove +
+                LOGGER.log(Level.FINE, "✗ Evicted from cache: " + keyToRemove +
                         " (accesses: " + removed.accessCount.get() + ")");
             }
         }
@@ -142,6 +147,7 @@ public class CacheFilter {
     /**
      * Rensa cache atomärt
      */
+    @Override
     public void clearCache() {
         synchronized (writeLock) {
             cache.clear();

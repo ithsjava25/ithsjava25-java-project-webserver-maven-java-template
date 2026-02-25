@@ -5,16 +5,21 @@ import org.example.http.HttpResponseBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public class StaticFileHandler {
     private static final String DEFAULT_WEB_ROOT = "www";
+    private static final Logger LOGGER = Logger.getLogger(StaticFileHandler.class.getName());
     
     // EN shared cache för alla threads
-    private static final CacheFilter SHARED_CACHE = new CacheFilter();
+    private static final FileCache SHARED_CACHE = new CacheFilter();
     
     private final String webRoot;
 
@@ -36,8 +41,10 @@ public class StaticFileHandler {
         }
 
         try {
-            byte[] fileBytes = SHARED_CACHE.getOrFetch(sanitizedUri,
-                    path -> Files.readAllBytes(new File(webRoot, path).toPath())
+            // Cache-nyckel inkluderar nu webRoot för att undvika collisions
+            String cacheKey = generateCacheKey(sanitizedUri);
+            byte[] fileBytes = SHARED_CACHE.getOrFetch(cacheKey,
+                    path -> Files.readAllBytes(new File(webRoot, sanitizedUri).toPath())
             );
 
             HttpResponseBuilder response = new HttpResponseBuilder();
@@ -47,10 +54,23 @@ public class StaticFileHandler {
             outputStream.flush();
 
         } catch (IOException e) {
+            LOGGER.log(Level.FINE, "File not found or read error: " + uri, e);
             sendErrorResponse(outputStream, 404, "Not Found");
         }
     }
 
+    /**
+     * Generates a unique cache key that includes webRoot to prevent collisions
+     * between different handler instances
+     */
+    private String generateCacheKey(String sanitizedUri) {
+        return webRoot + ":" + sanitizedUri;
+    }
+
+    /**
+     * Sanitizes URI by removing query strings, fragments, null bytes, and leading slashes.
+     * Also performs URL-decoding to normalize percent-encoded sequences.
+     */
     private String sanitizeUri(String uri) {
         // Entydlig: ta bort query string och fragment
         int queryIndex = uri.indexOf('?');
@@ -64,8 +84,21 @@ public class StaticFileHandler {
                 .replace("\0", "")
                 .replaceAll("^/+", "");  // Bort med leading slashes
 
+        // URL-decode to normalize percent-encoded sequences (e.g., %2e%2e -> ..)
+        try {
+            uri = URLDecoder.decode(uri, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            LOGGER.log(Level.WARNING, "Invalid URL encoding in URI: " + uri);
+            // Return as-is if decoding fails; isPathTraversal will handle it
+        }
+
         return uri;
     }
+
+    /**
+     * Checks if the requested path attempts to traverse outside the web root.
+     * Uses path normalization after decoding to catch traversal attempts.
+     */
     private boolean isPathTraversal(String uri) {
         try {
             Path webRootPath = Paths.get(webRoot).toRealPath();
@@ -73,6 +106,7 @@ public class StaticFileHandler {
             
             return !requestedPath.startsWith(webRootPath);
         } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Path traversal check failed for: " + uri, e);
             return true;
         }
     }
@@ -88,7 +122,7 @@ public class StaticFileHandler {
     }
 
     //Diagnostik-metod
-    public static CacheFilter.CacheStats getCacheStats() {
+    public static FileCache.CacheStats getCacheStats() {
         return SHARED_CACHE.getStats();
     }
 
