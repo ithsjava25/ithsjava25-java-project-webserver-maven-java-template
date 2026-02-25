@@ -74,7 +74,11 @@ public class StaticFileHandler {
      * Also performs URL-decoding to normalize percent-encoded sequences.
      */
     private String sanitizeUri(String uri) {
-        // Entydlig: ta bort query string och fragment
+        if (uri == null || uri.isEmpty()) {
+            return "index.html";
+        }
+
+        // Ta bort query string och fragment
         int queryIndex = uri.indexOf('?');
         int fragmentIndex = uri.indexOf('#');
         int endIndex = Math.min(
@@ -86,18 +90,17 @@ public class StaticFileHandler {
                 .replace("\0", "")
                 .replaceAll("^/+", "");  // Bort med leading slashes
 
-        // URL-decode to normalize percent-encoded sequences (e.g., %2e%2e -> ..)
+        // URL-decode för att normalisera percent-encoded sequences (t.ex. %2e%2e -> ..)
         try {
             uri = URLDecoder.decode(uri, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid URL encoding in URI: " + uri);
-            // Return as-is if decoding fails; isPathTraversal will handle it
+            LOGGER.log(Level.WARNING, "Ogiltig URL-kodning i URI: " + uri);
+            // Returna som den är om avkodning misslyckas; isPathTraversal kommer hantera det
         }
 
-        return uri;
+        return uri.isEmpty() ? "index.html" : uri;
     }
 
-    /**
     /**
      * Kontrollerar om den begärda sökvägen försöker traversera utanför webroten.
      * Använder sökvägsnormalisering efter avkodning för att fånga traversalförsök.

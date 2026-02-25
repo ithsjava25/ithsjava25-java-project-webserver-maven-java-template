@@ -1,4 +1,3 @@
-
 package org.example;
 
 import java.io.IOException;
@@ -7,6 +6,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Thread-safe in-memory cache filter using ConcurrentHashMap
@@ -55,7 +56,7 @@ public class CacheFilter implements FileCache {
         CacheEntry entry = cache.get(uri);
         if (entry != null) {
             entry.recordAccess();
-            LOGGER.log(Level.FINE, "✓ Cache hit for: " + uri);
+            LOGGER.log(Level.FINE, " Cache hit for: " + uri);
             return entry.data;
         }
 
@@ -65,14 +66,14 @@ public class CacheFilter implements FileCache {
             entry = cache.get(uri);
             if (entry != null) {
                 entry.recordAccess();
-                LOGGER.log(Level.FINE, "✓ Cache hit for: " + uri + " (from concurrent fetch)");
+                LOGGER.log(Level.FINE, "Cache hit for: " + uri + " (from concurrent fetch)");
                 return entry.data;
             }
             
             
 
             // Fetch och cachelagra
-            LOGGER.log(Level.FINE, "✗ Cache miss for: " + uri);
+            LOGGER.log(Level.FINE, "Cache miss for: " + uri);
             byte[] fileBytes = provider.fetch(uri);
 
             if (fileBytes != null) {
@@ -86,7 +87,7 @@ public class CacheFilter implements FileCache {
     private void addToCacheUnsafe(String uri, byte[] data) {
         // Guard mot oversized entries som kan blockera eviction
         if (data.length > MAX_CACHE_BYTES) {
-            LOGGER.log(Level.WARNING, "⚠️ Skipping cache for oversized file: " + uri +
+            LOGGER.log(Level.WARNING, "Skipping cache for oversized file: " + uri +
                     " (" + (data.length / 1024 / 1024) + "MB > " +
                     (MAX_CACHE_BYTES / 1024 / 1024) + "MB)");
             return;
@@ -99,7 +100,7 @@ public class CacheFilter implements FileCache {
 
         // Om cache fortfarande är full efter eviction, hoppa över
         if (shouldEvict(data)) {
-            LOGGER.log(Level.WARNING, "⚠️ Cache full, skipping: " + uri);
+            LOGGER.log(Level.WARNING, " Cache full, skipping: " + uri);
             return;
         }
 
@@ -137,7 +138,7 @@ public class CacheFilter implements FileCache {
             CacheEntry removed = cache.remove(keyToRemove);
             if (removed != null) {
                 currentBytes.addAndGet(-removed.data.length);
-                LOGGER.log(Level.FINE, "✗ Evicted from cache: " + keyToRemove +
+                LOGGER.log(Level.FINE, " Evicted from cache: " + keyToRemove +
                         " (accesses: " + removed.accessCount.get() + ")");
             }
         }
@@ -153,19 +154,79 @@ public class CacheFilter implements FileCache {
             currentBytes.set(0);
         }
     }
-
+    /**
+     * Cache statistics record.
+     */
     @Override
-    public CacheStats getStats() {
-        long totalAccesses = cache.values().stream()
-                .mapToLong(e -> e.accessCount.get())
-                .sum();
+    public FileCache.CacheStats getStats() {
+        return null;
+    }
 
-        return new CacheStats(
-                cache.size(),
-                currentBytes.get(),
-                MAX_CACHE_ENTRIES,
-                MAX_CACHE_BYTES,
-                totalAccesses
+
+    class CacheStats {
+        public final int entries;
+        public final long bytes;
+        public final int maxEntries;
+        public final long maxBytes;
+        public final long totalAccesses;
+
+        public CacheStats(int entries, long bytes, int maxEntries, long maxBytes, long totalAccesses) {
+            this.entries = entries;
+            this.bytes = bytes;
+            this.maxEntries = maxEntries;
+            this.maxBytes = maxBytes;
+            this.totalAccesses = totalAccesses;
+        }
+
+        @Override
+        public String toString() {
+            String bytesFormatted = formatBytes(bytes);
+            String maxBytesFormatted = formatBytes(maxBytes);
+            
+            return String.format(
+                    "CacheStats{entries=%d/%d, bytes=%s/%s, utilization=%.1f%%, accesses=%d}",
+                    entries, maxEntries, bytesFormatted, maxBytesFormatted,
+                    (double) bytes / maxBytes * 100, totalAccesses
+            );
+        }
+
+        private static String formatBytes(long bytes) {
+            if (bytes <= 0) return "0 B";
+            final String[] units = new String[]{"B", "KB", "MB", "GB"};
+            int digitGroups = (int) (Math.log10(bytes) / Math.log10(1024));
+            return String.format("%.1f %s", bytes / Math.pow(1024, digitGroups), units[digitGroups]);
+        }
+    }
+
+    /**
+     * Sanitizes URI by removing query strings, fragments, null bytes, and leading slashes.
+     * Also performs URL-decoding to normalize percent-encoded sequences.
+     */
+    private String sanitizeUri(String uri) {
+        if (uri == null || uri.isEmpty()) {
+            return "index.html";
+        }
+
+        // Ta bort query string och fragment
+        int queryIndex = uri.indexOf('?');
+        int fragmentIndex = uri.indexOf('#');
+        int endIndex = Math.min(
+                queryIndex > 0 ? queryIndex : uri.length(),
+                fragmentIndex > 0 ? fragmentIndex : uri.length()
         );
+
+        uri = uri.substring(0, endIndex)
+                .replace("\0", "")
+                .replaceAll("^/+", "");  // Bort med leading slashes
+
+        // URL-decode för att normalisera percent-encoded sequences (t.ex. %2e%2e -> ..)
+        try {
+            uri = URLDecoder.decode(uri, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            LOGGER.log(Level.WARNING, "Ogiltig URL-kodning i URI: " + uri);
+            // Returna som den är om avkodning misslyckas; isPathTraversal kommer hantera det
+        }
+
+        return uri.isEmpty() ? "index.html" : uri;
     }
 }

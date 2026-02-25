@@ -56,11 +56,21 @@ public interface FileCache {
 
         @Override
         public String toString() {
+            String bytesFormatted = formatBytes(bytes);
+            String maxBytesFormatted = formatBytes(maxBytes);
+            
             return String.format(
-                    "CacheStats{entries=%d/%d, bytes=%d/%d, utilization=%.1f%%, accesses=%d}",
-                    entries, maxEntries, bytes, maxBytes,
+                    "CacheStats{entries=%d/%d, bytes=%s/%s, utilization=%.1f%%, accesses=%d}",
+                    entries, maxEntries, bytesFormatted, maxBytesFormatted,
                     (double) bytes / maxBytes * 100, totalAccesses
             );
+        }
+
+        private static String formatBytes(long bytes) {
+            if (bytes <= 0) return "0 B";
+            final String[] units = new String[]{"B", "KB", "MB", "GB"};
+            int digitGroups = (int) (Math.log10(bytes) / Math.log10(1024));
+            return String.format("%.1f %s", bytes / Math.pow(1024, digitGroups), units[digitGroups]);
         }
     }
 }

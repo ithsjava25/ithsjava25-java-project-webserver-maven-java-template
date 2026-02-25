@@ -85,12 +85,12 @@ class StaticFileHandlerTest {
         Files.writeString(tempDir.resolve("shared.html"), "Data");
         StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
 
-        // Förvärmning
+        // Förvärmning - ladda filen i cache
         handler.sendGetRequest(new ByteArrayOutputStream(), "shared.html");
 
-        // Act - 10 trådar läser samma fil 50 gånger varje
+        // Act - 10 trådar läser samma fil 50 gånger varje = 500 totala läsningar
         Thread[] threads = new Thread[10];
-        final AssertionError[] assertionErrors = new AssertionError[1];
+        final Exception[] threadError = new Exception[1];
 
         for (int i = 0; i < 10; i++) {
             threads[i] = new Thread(() -> {
@@ -98,16 +98,17 @@ class StaticFileHandlerTest {
                     for (int j = 0; j < 50; j++) {
                         ByteArrayOutputStream out = new ByteArrayOutputStream();
                         handler.sendGetRequest(out, "shared.html");
-                        assertThat(out.toString()).contains("HTTP/1.1 200");
+                        String response = out.toString();
+                        
+                        // Validera att svaret är korrekt
+                        if (!response.contains("HTTP/1.1 200") || !response.contains("Data")) {
+                            throw new AssertionError("Oväntad response: " + response.substring(0, Math.min(100, response.length())));
+                        }
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (AssertionError e) {
-                    // Capture assertion errors from child thread
+                } catch (Exception e) {
                     synchronized (threads) {
-                        assertionErrors[0] = e;
+                        threadError[0] = e;
                     }
-                    throw e;
                 }
             });
             threads[i].start();
@@ -118,13 +119,15 @@ class StaticFileHandlerTest {
             t.join();
         }
 
-        // Assert - Check if any child thread had assertion failures
-        if (assertionErrors[0] != null) {
-            throw assertionErrors[0];
+        // Assert - Kontrollera om någon tråd hade fel
+        if (threadError[0] != null) {
+            throw new AssertionError("Tråd-fel: " + threadError[0].getMessage(), threadError[0]);
         }
 
-        // Assert - Cache ska bara ha EN entry
-        assertThat(StaticFileHandler.getCacheStats().entries).isEqualTo(1);
+        // Assert - Cache ska bara ha EN entry för shared.html
+        FileCache.CacheStats stats = StaticFileHandler.getCacheStats();
+        assertThat(stats.entries).isEqualTo(1);
+        assertThat(stats.totalAccesses).isGreaterThanOrEqualTo(500);
     }
 
     @Test
