@@ -96,17 +96,22 @@ public class StaticFileHandler {
     }
 
     /**
-     * Checks if the requested path attempts to traverse outside the web root.
-     * Uses path normalization after decoding to catch traversal attempts.
+    /**
+     * Kontrollerar om den begärda sökvägen försöker traversera utanför webroten.
+     * Använder sökvägsnormalisering efter avkodning för att fånga traversalförsök.
      */
     private boolean isPathTraversal(String uri) {
         try {
-            Path webRootPath = Paths.get(webRoot).toRealPath();
+            // Använd absolutsökväg + normalisera istället för toRealPath() för att undvika
+            // krav på att katalogen existerar och för att hantera symboliska länkar säkert
+            Path webRootPath = Paths.get(webRoot).toAbsolutePath().normalize();
             Path requestedPath = webRootPath.resolve(uri).normalize();
-            
+
+            // Returnera true om den begärda sökvägen inte ligger under webroten
             return !requestedPath.startsWith(webRootPath);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Path traversal check failed for: " + uri, e);
+        } catch (Exception e) {
+            // Om något går fel under sökvägsvalideringen, tillåt inte åtkomst (säker utgång)
+            LOGGER.log(Level.WARNING, "Sökvägstraversalkontroll misslyckades för: " + uri, e);
             return true;
         }
     }

@@ -2,6 +2,8 @@
 package org.example;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,6 +70,8 @@ public class CacheFilter implements FileCache {
                 LOGGER.log(Level.FINE, "✓ Cache hit for: " + uri + " (from concurrent fetch)");
                 return entry.data;
             }
+            
+            
 
             // Fetch och cachelagra
             LOGGER.log(Level.FINE, "✗ Cache miss for: " + uri);
@@ -81,9 +85,6 @@ public class CacheFilter implements FileCache {
         }
     }
 
-    /**
-     * Lägg till i cache med eviction om nödvändigt (MÅSTE VARA UNDER LOCK)
-     */
     private void addToCacheUnsafe(String uri, byte[] data) {
         // Guard mot oversized entries som kan blockera eviction
         if (data.length > MAX_CACHE_BYTES) {
