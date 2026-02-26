@@ -4,10 +4,6 @@ import org.example.config.AppConfig;
 import org.example.filter.IpFilter;
 import org.example.httpparser.HttpParser;
 import org.example.httpparser.HttpRequest;
-
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
 import org.example.filter.Filter;
@@ -21,12 +17,12 @@ import java.net.Socket;
 public class ConnectionHandler implements AutoCloseable {
     private final Socket client;
     private final List<Filter> filters;
-    String webRoot;
+    private final String webRoot;
 
     public ConnectionHandler(Socket client) {
         this.client = client;
+        this.webRoot = "www";
         this.filters = buildFilters();
-        this.webRoot = null;
     }
 
     public ConnectionHandler(Socket client, String webRoot) {
@@ -46,14 +42,6 @@ public class ConnectionHandler implements AutoCloseable {
     }
 
     public void runConnectionHandler() throws IOException {
-        StaticFileHandler sfh;
-
-        if (webRoot != null) {
-            sfh = new StaticFileHandler(webRoot);
-        } else {
-            sfh = new StaticFileHandler();
-        }
-
         HttpParser parser = new HttpParser();
         parser.setReader(client.getInputStream());
         parser.parseRequest();
@@ -83,24 +71,8 @@ public class ConnectionHandler implements AutoCloseable {
         }
 
         // Let StaticFileHandler handle everything
-        StaticFileHandler sfh = new StaticFileHandler();
+        StaticFileHandler sfh = new StaticFileHandler(webRoot);
         sfh.sendGetRequest(client.getOutputStream(), parser.getUri());
-    }
-
-    private String sanitizeUri(String uri) {
-        if (uri == null || uri.isEmpty()) return "index.html";
-
-        int endIndex = Math.min(
-                uri.indexOf('?') < 0 ? uri.length() : uri.indexOf('?'),
-                uri.indexOf('#') < 0 ? uri.length() : uri.indexOf('#')
-        );
-
-        return uri.substring(0, endIndex)
-                .replace("\0", "")
-                .replaceAll("^/+", "")
-                .replaceAll("^$", "index.html");
-        resolveTargetFile(parser.getUri());
-        sfh.sendGetRequest(client.getOutputStream(), uri);
     }
 
     private HttpResponseBuilder applyFilters(HttpRequest request) {
@@ -108,14 +80,6 @@ public class ConnectionHandler implements AutoCloseable {
         FilterChainImpl chain = new FilterChainImpl(filters);
         chain.doFilter(request, response);
         return response;
-    }
-
-    private void resolveTargetFile(String uri) {
-        if (uri == null || "/".equals(uri)) {
-            this.uri = "index.html";
-        } else {
-            this.uri = uri.startsWith("/") ? uri.substring(1) : uri;
-        }
     }
 
     @Override
