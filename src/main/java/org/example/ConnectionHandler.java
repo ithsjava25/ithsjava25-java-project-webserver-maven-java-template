@@ -82,9 +82,9 @@ public class ConnectionHandler implements AutoCloseable {
             return;
         }
 
-        // Sanitize URI here (clean it)
-        String sanitizedUri = sanitizeUri(parser.getUri());
-        String cacheKey = "www:" + sanitizedUri;
+        // Let StaticFileHandler handle everything
+        StaticFileHandler sfh = new StaticFileHandler();
+        sfh.sendGetRequest(client.getOutputStream(), parser.getUri());
     }
 
     private String sanitizeUri(String uri) {
