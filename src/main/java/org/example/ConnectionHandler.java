@@ -115,9 +115,10 @@ public class ConnectionHandler implements AutoCloseable {
     // -----------------------------
 
     private static String extractPath(String uri) {
-        if (uri == null) return "/";
+        if (uri == null || uri.isEmpty()) return "/";
         int q = uri.indexOf('?');
-        return (q >= 0) ? uri.substring(0, q) : uri;
+        String path = (q >= 0) ? uri.substring(0, q) : uri;
+        return path.isEmpty() ? "/" : path;
     }
 
     private static Map<String, List<String>> parseQueryParams(String uri) {
@@ -142,6 +143,11 @@ public class ConnectionHandler implements AutoCloseable {
             String pair = query.substring(start, ampIndex);
 
             int equalsIndex = pair.indexOf('=');
+
+            if (pair.isEmpty()) {
+                start = ampIndex + 1;
+                continue;
+            }
 
             String key;
             String value;
