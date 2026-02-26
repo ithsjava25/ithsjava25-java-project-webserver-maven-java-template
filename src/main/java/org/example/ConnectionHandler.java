@@ -21,9 +21,17 @@ import java.net.Socket;
 public class ConnectionHandler implements AutoCloseable {
     private final Socket client;
     private final List<Filter> filters;
+    String webRoot;
 
     public ConnectionHandler(Socket client) {
         this.client = client;
+        this.filters = buildFilters();
+        this.webRoot = null;
+    }
+
+    public ConnectionHandler(Socket client, String webRoot) {
+        this.client = client;
+        this.webRoot = webRoot;
         this.filters = buildFilters();
     }
 
@@ -38,6 +46,14 @@ public class ConnectionHandler implements AutoCloseable {
     }
 
     public void runConnectionHandler() throws IOException {
+        StaticFileHandler sfh;
+
+        if (webRoot != null) {
+            sfh = new StaticFileHandler(webRoot);
+        } else {
+            sfh = new StaticFileHandler();
+        }
+
         HttpParser parser = new HttpParser();
         parser.setReader(client.getInputStream());
         parser.parseRequest();
@@ -83,6 +99,8 @@ public class ConnectionHandler implements AutoCloseable {
                 .replace("\0", "")
                 .replaceAll("^/+", "")
                 .replaceAll("^$", "index.html");
+        resolveTargetFile(parser.getUri());
+        sfh.sendGetRequest(client.getOutputStream(), uri);
     }
 
     private HttpResponseBuilder applyFilters(HttpRequest request) {
@@ -90,6 +108,14 @@ public class ConnectionHandler implements AutoCloseable {
         FilterChainImpl chain = new FilterChainImpl(filters);
         chain.doFilter(request, response);
         return response;
+    }
+
+    private void resolveTargetFile(String uri) {
+        if (uri == null || "/".equals(uri)) {
+            this.uri = "index.html";
+        } else {
+            this.uri = uri.startsWith("/") ? uri.substring(1) : uri;
+        }
     }
 
     @Override
