@@ -24,22 +24,24 @@ public class StaticFileHandler {
     }
 
     public void sendGetRequest(OutputStream outputStream, String uri) throws IOException {
-        if (isPathTraversal(uri)) {
+        String sanitizedUri = sanitizeUri(uri);
+
+        if (isPathTraversal(sanitizedUri)) {
             writeResponse(outputStream, 403, "Forbidden");
             return;
         }
 
         try {
-            String cacheKey = "www:" + uri;  
+            String cacheKey = "www:" + sanitizedUri;
             byte[] fileBytes = FileCache.get(cacheKey);
 
             if (fileBytes == null) {
-                fileBytes = Files.readAllBytes(new File(webRoot, uri).toPath());
+                fileBytes = Files.readAllBytes(new File(webRoot, sanitizedUri).toPath());
                 FileCache.put(cacheKey, fileBytes);
             }
 
             HttpResponseBuilder response = new HttpResponseBuilder();
-            response.setContentTypeFromFilename(uri);
+            response.setContentTypeFromFilename(sanitizedUri);
             response.setBody(fileBytes);
             outputStream.write(response.build());
             outputStream.flush();
@@ -49,6 +51,21 @@ public class StaticFileHandler {
         } catch (IOException e) {
             writeResponse(outputStream, 500, "Internal Server Error");
         }
+    }
+
+
+    private String sanitizeUri(String uri) {
+        if (uri == null || uri.isEmpty()) return "index.html";
+
+        int endIndex = Math.min(
+                uri.indexOf('?') < 0 ? uri.length() : uri.indexOf('?'),
+                uri.indexOf('#') < 0 ? uri.length() : uri.indexOf('#')
+        );
+
+        return uri.substring(0, endIndex)
+                .replace("\0", "")
+                .replaceAll("^/+", "")
+                .replaceAll("^$", "index.html");
     }
 
     private boolean isPathTraversal(String uri) {

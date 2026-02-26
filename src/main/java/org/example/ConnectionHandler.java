@@ -69,34 +69,6 @@ public class ConnectionHandler implements AutoCloseable {
         // Sanitize URI here (clean it)
         String sanitizedUri = sanitizeUri(parser.getUri());
         String cacheKey = "www:" + sanitizedUri;
-
-        // Check cache FIRST
-        byte[] cachedBytes = FileCache.get(cacheKey);
-        if (cachedBytes != null) {
-            System.out.println(" Cache HIT: " + sanitizedUri);
-            response.setContentTypeFromFilename(sanitizedUri);
-            response.setBody(cachedBytes);
-            client.getOutputStream().write(response.build());
-            client.getOutputStream().flush();
-            return;
-        }
-
-        // Cache miss - StaticFileHandler reads and caches
-        System.out.println(" Cache MISS: " + sanitizedUri);
-        try {
-            byte[] fileBytes = Files.readAllBytes(new File("www", sanitizedUri).toPath());
-            FileCache.put(cacheKey, fileBytes);  // ← SPARAR I CACHEN HÄR
-            
-            response.setContentTypeFromFilename(sanitizedUri);
-            response.setBody(fileBytes);
-            client.getOutputStream().write(response.build());
-            client.getOutputStream().flush();
-        } catch (NoSuchFileException e) {
-            response.setStatusCode(HttpResponseBuilder.SC_NOT_FOUND);
-            response.setBody("404 Not Found");
-            client.getOutputStream().write(response.build());
-            client.getOutputStream().flush();
-        }
     }
 
     private String sanitizeUri(String uri) {
