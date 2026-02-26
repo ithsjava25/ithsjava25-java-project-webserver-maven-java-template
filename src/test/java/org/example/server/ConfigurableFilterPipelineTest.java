@@ -1,9 +1,14 @@
 package org.example.server;
 
+import org.example.filter.Filter;
+import org.example.filter.FilterChain;
+import org.example.httpparser.HttpRequest;
+import org.example.http.HttpResponseBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -14,7 +19,7 @@ class ConfigurableFilterPipelineTest {
 
         List<String> events = new ArrayList<>();
 
-        HttpFilter filter = new TestFilter("g1", events, false);
+        Filter filter = new TestFilter("g1", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(filter, 1, null)
@@ -24,8 +29,8 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/home"),
-                new TestHandler(events)
+                newRequest("/home"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(
@@ -39,7 +44,7 @@ class ConfigurableFilterPipelineTest {
 
         List<String> events = new ArrayList<>();
 
-        HttpFilter stopFilter = new TestFilter("stop", events, true);
+        Filter stopFilter = new TestFilter("stop", events, true);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(stopFilter, 1, null)
@@ -48,12 +53,12 @@ class ConfigurableFilterPipelineTest {
         ConfigurableFilterPipeline pipeline =
                 new ConfigurableFilterPipeline(regs);
 
-        HttpResponse response = pipeline.execute(
-                new HttpRequest("GET", "/home"),
-                new TestHandler(events)
+        HttpResponseBuilder response = pipeline.execute(
+                newRequest("/home"),
+                (req, resp) -> events.add("handler")
         );
 
-        assertEquals(403, response.getStatusCode());
+        assertEquals(HttpResponseBuilder.SC_FORBIDDEN, response.getStatusCode());
         assertEquals(List.of("stop"), events);
     }
 
@@ -61,7 +66,7 @@ class ConfigurableFilterPipelineTest {
     void route_specific_filter_runs_when_path_matches() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter routeFilter = new TestFilter("r1", events, false);
+        Filter routeFilter = new TestFilter("r1", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(routeFilter, 1, List.of("/api/*"))
@@ -71,8 +76,8 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/api/users"),
-                new TestHandler(events)
+                newRequest("/api/users"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(List.of("r1", "handler"), events);
@@ -82,7 +87,7 @@ class ConfigurableFilterPipelineTest {
     void route_specific_filter_is_skipped_when_path_does_not_match() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter routeFilter = new TestFilter("r1", events, false);
+        Filter routeFilter = new TestFilter("r1", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(routeFilter, 1, List.of("/api/*"))
@@ -92,8 +97,8 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/public"),
-                new TestHandler(events)
+                newRequest("/public"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(List.of("handler"), events);
@@ -103,8 +108,8 @@ class ConfigurableFilterPipelineTest {
     void mixed_pipeline_runs_global_then_route_then_handler() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter global = new TestFilter("g1", events, false);
-        HttpFilter route = new TestFilter("r1", events, false);
+        Filter global = new TestFilter("g1", events, false);
+        Filter route = new TestFilter("r1", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(global, 1, null),
@@ -115,8 +120,8 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/api/users"),
-                new TestHandler(events)
+                newRequest("/api/users"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(List.of("g1", "r1", "handler"), events);
@@ -126,9 +131,9 @@ class ConfigurableFilterPipelineTest {
     void ordering_is_by_order_field() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter f20 = new TestFilter("f20", events, false);
-        HttpFilter f10 = new TestFilter("f10", events, false);
-        HttpFilter f30 = new TestFilter("f30", events, false);
+        Filter f20 = new TestFilter("f20", events, false);
+        Filter f10 = new TestFilter("f10", events, false);
+        Filter f30 = new TestFilter("f30", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(f20, 20, null),
@@ -140,8 +145,8 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/home"),
-                new TestHandler(events)
+                newRequest("/home"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(List.of("f10", "f20", "f30", "handler"), events);
@@ -151,8 +156,8 @@ class ConfigurableFilterPipelineTest {
     void global_stop_filter_prevents_route_and_handler() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter globalStop = new TestFilter("gStop", events, true);
-        HttpFilter routeFilter = new TestFilter("r1", events, false);
+        Filter globalStop = new TestFilter("gStop", events, true);
+        Filter routeFilter = new TestFilter("r1", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(globalStop, 1, null),
@@ -162,12 +167,12 @@ class ConfigurableFilterPipelineTest {
         ConfigurableFilterPipeline pipeline =
                 new ConfigurableFilterPipeline(regs);
 
-        HttpResponse response = pipeline.execute(
-                new HttpRequest("GET", "/api/users"),
-                new TestHandler(events)
+        HttpResponseBuilder response = pipeline.execute(
+                newRequest("/api/users"),
+                (req, resp) -> events.add("handler")
         );
 
-        assertEquals(403, response.getStatusCode());
+        assertEquals(HttpResponseBuilder.SC_FORBIDDEN, response.getStatusCode());
         assertEquals(List.of("gStop"), events);
     }
 
@@ -175,8 +180,8 @@ class ConfigurableFilterPipelineTest {
     void route_stop_filter_prevents_handler_but_global_runs() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter global = new TestFilter("g1", events, false);
-        HttpFilter routeStop = new TestFilter("rStop", events, true);
+        Filter global = new TestFilter("g1", events, false);
+        Filter routeStop = new TestFilter("rStop", events, true);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(global, 1, null),
@@ -186,12 +191,12 @@ class ConfigurableFilterPipelineTest {
         ConfigurableFilterPipeline pipeline =
                 new ConfigurableFilterPipeline(regs);
 
-        HttpResponse response = pipeline.execute(
-                new HttpRequest("GET", "/api/users"),
-                new TestHandler(events)
+        HttpResponseBuilder response = pipeline.execute(
+                newRequest("/api/users"),
+                (req, resp) -> events.add("handler")
         );
 
-        assertEquals(403, response.getStatusCode());
+        assertEquals(HttpResponseBuilder.SC_FORBIDDEN, response.getStatusCode());
         assertEquals(List.of("g1", "rStop"), events);
     }
 
@@ -199,21 +204,47 @@ class ConfigurableFilterPipelineTest {
     void response_phase_can_be_done_with_try_finally_in_filters_reverse_order() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter f1 = (req, chain) -> {
-            events.add("f1:enter");
-            try {
-                return chain.next(req);
-            } finally {
-                events.add("f1:exit");
+        Filter f1 = new Filter() {
+            @Override
+            public void init() {
+                // no-op
+            }
+
+            @Override
+            public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
+                events.add("f1:enter");
+                try {
+                    chain.doFilter(request, response);
+                } finally {
+                    events.add("f1:exit");
+                }
+            }
+
+            @Override
+            public void destroy() {
+                // no-op
             }
         };
 
-        HttpFilter f2 = (req, chain) -> {
-            events.add("f2:enter");
-            try {
-                return chain.next(req);
-            } finally {
-                events.add("f2:exit");
+        Filter f2 = new Filter() {
+            @Override
+            public void init() {
+                // no-op
+            }
+
+            @Override
+            public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
+                events.add("f2:enter");
+                try {
+                    chain.doFilter(request, response);
+                } finally {
+                    events.add("f2:exit");
+                }
+            }
+
+            @Override
+            public void destroy() {
+                // no-op
             }
         };
 
@@ -225,10 +256,10 @@ class ConfigurableFilterPipelineTest {
         ConfigurableFilterPipeline pipeline =
                 new ConfigurableFilterPipeline(regs);
 
-        pipeline.execute(new HttpRequest("GET", "/home"), request -> {
-            events.add("handler");
-            return new HttpResponse(200, "OK");
-        });
+        pipeline.execute(
+                newRequest("/home"),
+                (req, resp) -> events.add("handler")
+        );
 
         assertEquals(
                 List.of("f1:enter", "f2:enter", "handler", "f2:exit", "f1:exit"),
@@ -240,8 +271,8 @@ class ConfigurableFilterPipelineTest {
     void global_filters_run_before_route_filters_even_if_route_has_lower_order() {
         List<String> events = new ArrayList<>();
 
-        HttpFilter global100 = new TestFilter("g100", events, false);
-        HttpFilter route0 = new TestFilter("r0", events, false);
+        Filter global100 = new TestFilter("g100", events, false);
+        Filter route0 = new TestFilter("r0", events, false);
 
         List<FilterRegistration> regs = List.of(
                 new FilterRegistration(global100, 100, null),
@@ -252,14 +283,18 @@ class ConfigurableFilterPipelineTest {
                 new ConfigurableFilterPipeline(regs);
 
         pipeline.execute(
-                new HttpRequest("GET", "/api/users"),
-                new TestHandler(events)
+                newRequest("/api/users"),
+                (req, resp) -> events.add("handler")
         );
 
         assertEquals(List.of("g100", "r0", "handler"), events);
     }
 
-    static class TestFilter implements HttpFilter {
+    private static HttpRequest newRequest(String path) {
+        return new HttpRequest("GET", path, "HTTP/1.1", Map.of(), "");
+    }
+
+    static class TestFilter implements Filter {
 
         private final String name;
         private final List<String> events;
@@ -272,30 +307,25 @@ class ConfigurableFilterPipelineTest {
         }
 
         @Override
-        public HttpResponse handle(HttpRequest request, FilterChain chain) {
+        public void init() {
+            // no-op
+        }
+        @Override
+        public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
 
             events.add(name);
 
             if (stop) {
-                return new HttpResponse(403, "Stopped");
+                response.setStatusCode(HttpResponseBuilder.SC_FORBIDDEN);
+                return;
             }
 
-            return chain.next(request);
-        }
-    }
-
-    static class TestHandler implements TerminalHandler {
-
-        private final List<String> events;
-
-        TestHandler(List<String> events) {
-            this.events = events;
+            chain.doFilter(request, response);
         }
 
         @Override
-        public HttpResponse handle(HttpRequest request) {
-            events.add("handler");
-            return new HttpResponse(200, "OK");
+        public void destroy() {
+            // no-op
         }
     }
 }

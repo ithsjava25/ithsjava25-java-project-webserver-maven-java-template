@@ -1,9 +1,11 @@
 package org.example.server;
 
+import org.example.filter.Filter;
+
 import java.util.List;
 
 public record FilterRegistration(
-        HttpFilter filter,
+        Filter filter,
         int order,
         List<String> routePatterns
 ) {
