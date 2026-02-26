@@ -8,6 +8,7 @@ import org.example.http.HttpResponseBuilder;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 public class ConfigurableFilterPipeline {
@@ -15,11 +16,16 @@ public class ConfigurableFilterPipeline {
     private final List<FilterRegistration> registrations;
 
     public ConfigurableFilterPipeline(List<FilterRegistration> registrations) {
-        this.registrations = registrations;
+        this.registrations = List.copyOf(
+                Objects.requireNonNull(registrations, "registrations must not be null")
+        );
     }
 
     public HttpResponseBuilder execute(HttpRequest request,
                                        BiConsumer<HttpRequest, HttpResponseBuilder> terminalHandler) {
+
+        Objects.requireNonNull(request, "request must not be null");
+        Objects.requireNonNull(terminalHandler, "terminalHandler must not be null");
 
         List<FilterRegistration> globalRegs = new ArrayList<>();
         List<FilterRegistration> routeRegs = new ArrayList<>();
