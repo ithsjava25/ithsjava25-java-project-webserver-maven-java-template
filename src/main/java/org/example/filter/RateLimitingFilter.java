@@ -47,19 +47,9 @@ public class RateLimitingFilter implements Filter {
     @Override
     public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
 
-        Object clientIpAttr = request.getAttribute("clientIp");
+        String clientIp = resolveClientIp(request, response);
 
-        if (!(clientIpAttr instanceof String clientIp) || (clientIp.isBlank())) {
-            response.setStatusCode(HttpResponseBuilder.SC_BAD_REQUEST);
-            response.setBody("<h1>400 Bad Request</h1><p>Missing client IP.</p>\n");
-            return;
-            }
-
-        String xForwardedFor = request.getHeaders().get("X-Forwarded-For");
-
-        if( xForwardedFor != null && xForwardedFor.isBlank() ) {
-            clientIp = xForwardedFor.split(",")[0].trim();
-        }
+        if (clientIp == null) return;
 
         BucketWrapper wrapper = buckets.computeIfAbsent(clientIp, k -> new BucketWrapper(createNewBucket()));
 
@@ -112,6 +102,24 @@ public class RateLimitingFilter implements Filter {
         void updateAccess() {
             this.lastAccessTime = System.currentTimeMillis();
         }
+    }
+
+    public static String resolveClientIp(HttpRequest request, HttpResponseBuilder response) {
+        Object clientIpAttr = request.getAttribute("clientIp");
+
+        if (!(clientIpAttr instanceof String clientIp) || (clientIp.isBlank())) {
+            response.setStatusCode(HttpResponseBuilder.SC_BAD_REQUEST);
+            response.setBody("<h1>400 Bad Request</h1><p>Missing client IP.</p>\n");
+            return null;
+        }
+
+        String xForwardedFor = request.getHeaders().get("X-Forwarded-For");
+
+        if( xForwardedFor != null && xForwardedFor.isBlank() ) {
+            clientIp = xForwardedFor.split(",")[0].trim();
+        }
+
+        return clientIp;
     }
 
     public Thread startCleanupThread() {
