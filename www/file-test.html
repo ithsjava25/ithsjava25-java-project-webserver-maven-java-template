@@ -270,7 +270,58 @@
   </div>
 </div>
 
-<!-- Java script which handles file selection and display -->
-<script></script>
+<!-- JavaScript which handles file selection and display -->
+<script>
+  <!--  -->
+  const types = {
+    jpeg: { path: '/test-files/test.jpeg', kind: 'image', label: 'image/jpeg' },
+    jpg:  { path: '/test-files/test.jpg',  kind: 'image', label: 'image/jpg'  },
+    png:  { path: '/test-files/test.png',  kind: 'image', label: 'image/png'  },
+    gif:  { path: '/test-files/test.gif',  kind: 'image', label: 'image/gif'  },
+    webp: { path: '/test-files/test.webp', kind: 'image', label: 'image/webp' },
+    svg:  { path: '/test-files/test.svg',  kind: 'image', label: 'image/svg'  },
+    txt:  { path: '/test-files/test.txt',  kind: 'text',  label: 'text/plain' },
+    pdf:  { path: '/test-files/test.pdf',  kind: 'pdf',   label: 'application/pdf' },
+    mp4:  { path: '/test-files/test.mp4',  kind: 'video', label: 'video/mp4'  },
+    webm: { path: '/test-files/test.webm', kind: 'video', label: 'video/webm' },
+    mp3:  { path: '/test-files/test.mp3',  kind: 'audio', label: 'audio/mpeg' },
+    wav:  { path: '/test-files/test.wav',  kind: 'audio', label: 'audio/wav'  },
+  };
+
+  function loadFile(ext) {
+    const contentArea = document.getElementById('content-area');
+    const typeTag = document.getElementById('type-tag');
+    const filePathDisplay = document.getElementById('filepath-display');
+
+    if (!ext || !types[ext]) {
+      contentArea.innerHTML = `<div class="placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>select a file type above</div>`;
+      typeTag.textContent = '—';
+      filePathDisplay.innerHTML = '—';
+      return;
+    }
+
+    const { path, kind, label } = types[ext];
+    typeTag.textContent = ext;
+    filePathDisplay.innerHTML = `<span>${path}</span>`;
+
+    if (kind === 'image') {
+      contentArea.innerHTML = `<img src="${path}" alt="test ${ext}" onerror="this.outerHTML='<span style=color:#555;font-family:monospace;font-size:.8rem>file not found: ${path}</span>'">`;
+    } else if (kind === 'text') {
+      fetch(path)
+              .then(response => { if (!response.ok) { throw new Error('not found'); } return response.text(); })
+              .then(responseText => { contentArea.innerHTML = `<pre>${escapeHtml(responseText)}</pre>`; })
+              .catch(() => { contentArea.innerHTML = `<span style="color:#555;font-family:monospace;font-size:.8rem">file not found: ${path}</span>`; });
+    } else if (kind === 'pdf') {
+      contentArea.innerHTML = `<embed src="${path}" type="application/pdf">`;
+    } else if (kind === 'video') {
+      contentArea.innerHTML = `<video controls><source src="${path}" type="${label}">Your browser does not support this video format.</video>`;
+    } else if (kind === 'audio') {
+      contentArea.innerHTML = `<audio controls><source src="${path}" type="${label}">Your browser does not support this audio format.</audio>`;
+    }
+  }
+
+  function escapeHtml(text) {
+    return text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }</script>
 </body>
 </html>
