@@ -48,13 +48,18 @@ public class RateLimitingFilter implements Filter {
     public void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain) {
 
         Object clientIpAttr = request.getAttribute("clientIp");
-        if (!(clientIpAttr instanceof String) || ((String) clientIpAttr).isBlank()) {
+
+        if (!(clientIpAttr instanceof String clientIp) || (clientIp.isBlank())) {
             response.setStatusCode(HttpResponseBuilder.SC_BAD_REQUEST);
             response.setBody("<h1>400 Bad Request</h1><p>Missing client IP.</p>\n");
             return;
             }
 
-        String clientIp = (String) clientIpAttr;
+        String xForwardedFor = request.getHeaders().get("X-Forwarded-For");
+
+        if( xForwardedFor != null || xForwardedFor.isBlank() ) {
+            clientIp = xForwardedFor.split(",")[0].trim();
+        }
 
         BucketWrapper wrapper = buckets.computeIfAbsent(clientIp, k -> new BucketWrapper(createNewBucket()));
 
