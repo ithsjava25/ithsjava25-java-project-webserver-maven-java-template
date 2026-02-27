@@ -19,12 +19,21 @@ public class ConnectionHandler implements AutoCloseable {
     Socket client;
     String uri;
     private final List<Filter> filters;
+    String webRoot;
 
     public ConnectionHandler(Socket client) {
         this.client = client;
         this.filters = buildFilters();
+        this.webRoot = null;
     }
-private List<Filter> buildFilters() {
+
+    public ConnectionHandler(Socket client, String webRoot) {
+        this.client = client;
+        this.webRoot = webRoot;
+        this.filters = buildFilters();
+    }
+
+    private List<Filter> buildFilters() {
         List<Filter> list = new ArrayList<>();
 
         list.add(new org.example.filter.RateLimitingFilter());
@@ -36,10 +45,17 @@ private List<Filter> buildFilters() {
         }
         // Add more filters here...
         return list;
-        }
-
+    }
 
     public void runConnectionHandler() throws IOException {
+        StaticFileHandler sfh;
+
+        if (webRoot != null) {
+            sfh = new StaticFileHandler(webRoot);
+        } else {
+            sfh = new StaticFileHandler();
+        }
+
         HttpParser parser = new HttpParser();
         parser.setReader(client.getInputStream());
         parser.parseRequest();
@@ -69,7 +85,6 @@ private List<Filter> buildFilters() {
         }
 
         resolveTargetFile(parser.getUri());
-        StaticFileHandler sfh = new StaticFileHandler();
         sfh.sendGetRequest(client.getOutputStream(), uri);
     }
 
@@ -83,14 +98,11 @@ private List<Filter> buildFilters() {
     }
 
     private void resolveTargetFile(String uri) {
-        if (uri.matches("/$")) { //matches(/)
+        if (uri == null || "/".equals(uri)) {
             this.uri = "index.html";
-        } else if (uri.matches("^(?!.*\\.html$).*$")) {
-            this.uri = uri.concat(".html");
         } else {
-            this.uri = uri;
+            this.uri = uri.startsWith("/") ? uri.substring(1) : uri;
         }
-
     }
 
     @Override
