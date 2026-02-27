@@ -57,7 +57,7 @@ public class RateLimitingFilter implements Filter {
 
         String xForwardedFor = request.getHeaders().get("X-Forwarded-For");
 
-        if( xForwardedFor != null || xForwardedFor.isBlank() ) {
+        if( xForwardedFor != null && xForwardedFor.isBlank() ) {
             clientIp = xForwardedFor.split(",")[0].trim();
         }
 
