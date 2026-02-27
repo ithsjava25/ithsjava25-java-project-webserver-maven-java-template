@@ -305,8 +305,14 @@
     filePathDisplay.innerHTML = `<span>${path}</span>`;
 
     if (kind === 'image') {
-      contentArea.innerHTML = `<img src="${path}" alt="test ${ext}" onerror="this.outerHTML='<span style=color:#555;font-family:monospace;font-size:.8rem>file not found: ${path}</span>'">`;
-    } else if (kind === 'text') {
+      const image = document.createElement('img');
+      image.src = path;
+      image.alt = `test ${ext}`;
+      image.onerror = () => {
+        image.outerHTML = `<span style="color:#4a6080;font-family:monospace;font-size:.8rem">file not found: ${path}</span>`;
+      };
+      contentArea.innerHTML = '';
+      contentArea.appendChild(image);    } else if (kind === 'text') {
       fetch(path)
               .then(response => { if (!response.ok) { throw new Error('not found'); } return response.text(); })
               .then(responseText => { contentArea.innerHTML = `<pre>${escapeHtml(responseText)}</pre>`; })
