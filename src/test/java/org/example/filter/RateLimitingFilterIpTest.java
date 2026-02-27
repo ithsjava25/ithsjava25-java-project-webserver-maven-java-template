@@ -37,7 +37,8 @@ class RateLimitingFilterIpTest {
     @Test
     void shouldFallbackToAttribute_WhenXForwardedForIsNotPresent(){
 
-        when(request.getAttribute("clientIp")).thenReturn(Map.of());
+        Map<String, String> headers = new HashMap<>();
+        when(request.getHeaders()).thenReturn(headers);
         when(request.getAttribute("clientIp")).thenReturn("10.0.0.5");
 
         String finalIp = resolveClientIp(request, response);
