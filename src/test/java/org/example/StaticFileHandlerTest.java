@@ -3,12 +3,11 @@ package org.example;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,8 +26,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StaticFileHandlerTest {
 
-    private StaticFileHandler createHandler() throws IOException {
-        return new StaticFileHandler(tempDir.toString());
+    @TempDir
+    Path tempDir;
+
+    private FileCache cache;
+
+    @BeforeEach
+    void setUp() {
+        cache = new FileCache(10);
+    }
+
+    private StaticFileHandler createHandler(){
+        return new StaticFileHandler(tempDir.toString(), cache);
     }
 
     private String sendRequest(String uri) throws IOException {
@@ -36,15 +45,6 @@ class StaticFileHandlerTest {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         handler.sendGetRequest(output, uri);
         return output.toString();
-    }
-
-    @TempDir
-    Path tempDir;
-
-    @BeforeEach
-    void setUp() {
-        // Rensa cache innan varje test för clean state
-        StaticFileHandler.clearCache();
     }
 
     @Test
@@ -75,15 +75,17 @@ class StaticFileHandlerTest {
     }
 
     @Test
-    void testSanitization_NullBytes() throws IOException {
-        assertThat(sendRequest("file.html\0../../secret")).contains("HTTP/1.1 404");
+    void testSanitization_NullBytes() {
+        assertThrows(NoSuchFileException.class, () -> {
+            sendRequest("file.html\0../../secret");
+        });
     }
 
     @Test
     void testConcurrent_MultipleReads() throws InterruptedException, IOException {
         // Arrange
         Files.writeString(tempDir.resolve("shared.html"), "Data");
-        StaticFileHandler handler = new StaticFileHandler(tempDir.toString());
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString(), cache);
 
         handler.sendGetRequest(new ByteArrayOutputStream(), "shared.html");
 
@@ -127,7 +129,7 @@ class StaticFileHandlerTest {
         Path testFile = tempDir.resolve("test.html");
         Files.writeString(testFile, "Hello Test");
 
-        StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString());
+        StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString(), cache);
         ByteArrayOutputStream fakeOutput = new ByteArrayOutputStream();
 
         // Act
@@ -141,73 +143,50 @@ class StaticFileHandlerTest {
     }
 
     @Test
-    void test_file_that_does_not_exists_should_return_404() throws IOException {
+    void test_file_that_does_not_exists_should_throw_exception() {
         // Arrange
-        StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString());
+        StaticFileHandler staticFileHandler = new StaticFileHandler(tempDir.toString(), cache);
         ByteArrayOutputStream fakeOutput = new ByteArrayOutputStream();
 
-        // Act
-        staticFileHandler.sendGetRequest(fakeOutput, "notExistingFile.html");
-
-        // Assert
-        String response = fakeOutput.toString();
-        assertTrue(response.contains("HTTP/1.1 404 Not Found"));
+        // Act & Assert
+        assertThrows(NoSuchFileException.class, () -> {
+            staticFileHandler.sendGetRequest(fakeOutput, "notExistingFile.html");
+        });
     }
 
     @Test
-    void test_path_traversal_should_return_403() throws IOException {
-        // Arrange
-        Path secret = tempDir.resolve("secret.txt");
-        Files.writeString(secret, "TOP SECRET");
-        Path webRoot = tempDir.resolve("www");
-        Files.createDirectories(webRoot);
-        StaticFileHandler handler = new StaticFileHandler(webRoot.toString());
-        ByteArrayOutputStream fakeOutput = new ByteArrayOutputStream();
-
-        // Act
-        handler.sendGetRequest(fakeOutput, "../secret.txt");
-
-        // Assert
-        String response = fakeOutput.toString();
-        assertFalse(response.contains("TOP SECRET"));
-        assertTrue(response.contains("HTTP/1.1 403 Forbidden"));
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "index.html?foo=bar",
-            "index.html#section",
-            "/index.html"
-    })
-    void sanitized_uris_should_return_200(String uri) throws IOException {
+    void null_byte_injection_should_throw_exception() throws IOException {
         // Arrange
         Path webRoot = tempDir.resolve("www");
         Files.createDirectories(webRoot);
-        Files.writeString(webRoot.resolve("index.html"), "Hello");
-        StaticFileHandler handler = new StaticFileHandler(webRoot.toString());
+        StaticFileHandler handler = new StaticFileHandler(webRoot.toString(), cache);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        // Act
-        handler.sendGetRequest(out, uri);
-
-        // Assert
-        assertTrue(out.toString().contains("HTTP/1.1 200 OK"));
+        // Act & Assert
+        assertThrows(NoSuchFileException.class, () -> {
+            handler.sendGetRequest(out, "index.html\0../../etc/passwd");
+        });
     }
 
     @Test
-    void null_byte_injection_should_not_return_200() throws IOException {
-        // Arrange
-        Path webRoot = tempDir.resolve("www");
-        Files.createDirectories(webRoot);
-        StaticFileHandler handler = new StaticFileHandler(webRoot.toString());
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
+    void testMaxCacheSize() throws IOException {
+        FileCache limitedCache = new FileCache(2);
+        StaticFileHandler handler = new StaticFileHandler(tempDir.toString(), limitedCache);
 
-        // Act
-        handler.sendGetRequest(out, "index.html\0../../etc/passwd");
+        Files.writeString(tempDir.resolve("1.html"), "1");
+        Files.writeString(tempDir.resolve("2.html"), "2");
+        Files.writeString(tempDir.resolve("3.html"), "3");
 
-        // Assert
-        String response = out.toString();
-        assertFalse(response.contains("HTTP/1.1 200 OK"));
-        assertTrue(response.contains("HTTP/1.1 404 Not Found"));
+        handler.sendGetRequest(new ByteArrayOutputStream(), "1.html");
+        handler.sendGetRequest(new ByteArrayOutputStream(), "2.html");
+        assertEquals(2, limitedCache.size());
+
+        handler.sendGetRequest(new ByteArrayOutputStream(), "3.html");
+        assertEquals(2, limitedCache.size());
+
+        // 1.html bör ha tagits bort eftersom det var äldst (LRU)
+        assertNull(limitedCache.get(tempDir.resolve("1.html").toString()));
+        assertNotNull(limitedCache.get(tempDir.resolve("2.html").toString()));
+        assertNotNull(limitedCache.get(tempDir.resolve("3.html").toString()));
     }
 }

@@ -14,20 +14,23 @@ import org.example.config.ConfigLoader;
 import java.io.IOException;
 import java.net.Socket;
 
+import java.io.OutputStream;
+import java.nio.file.NoSuchFileException;
+
 public class ConnectionHandler implements AutoCloseable {
     private final Socket client;
     private final List<Filter> filters;
     private final String webRoot;
+    private final FileCache fileCache;
 
-    public ConnectionHandler(Socket client) {
-        this.client = client;
-        this.webRoot = "www";
-        this.filters = buildFilters();
+    public ConnectionHandler(Socket client, FileCache fileCache) {
+        this(client, "www", fileCache);
     }
 
-    public ConnectionHandler(Socket client, String webRoot) {
+    public ConnectionHandler(Socket client, String webRoot, FileCache fileCache) {
         this.client = client;
         this.webRoot = webRoot;
+        this.fileCache = fileCache;
         this.filters = buildFilters();
     }
 
@@ -42,44 +45,67 @@ public class ConnectionHandler implements AutoCloseable {
     }
 
     public void runConnectionHandler() throws IOException {
+        HttpParser parser = parseRequest();
+        HttpRequest request = buildHttpRequest(parser);
+
+        if (isForbiddenByFilters(request)) return;
+        if (isPathTraversal(parser.getUri())) return;
+
+        serveFile(parser.getUri());
+    }
+
+    private HttpParser parseRequest() throws IOException {
         HttpParser parser = new HttpParser();
         parser.setReader(client.getInputStream());
         parser.parseRequest();
         parser.parseHttp();
-
-        HttpRequest request = new HttpRequest(
-                parser.getMethod(),
-                parser.getUri(),
-                parser.getVersion(),
-                parser.getHeadersMap(),
-                ""
-        );
-
-        String clientIp = client.getInetAddress().getHostAddress();
-        request.setAttribute("clientIp", clientIp);
-
-        // Apply security filters
-        HttpResponseBuilder response = applyFilters(request);
-
-        int statusCode = response.getStatusCode();
-        if (statusCode == HttpResponseBuilder.SC_FORBIDDEN ||
-                statusCode == HttpResponseBuilder.SC_BAD_REQUEST) {
-            byte[] responseBytes = response.build();
-            client.getOutputStream().write(responseBytes);
-            client.getOutputStream().flush();
-            return;
-        }
-
-        // Let StaticFileHandler handle everything
-        StaticFileHandler sfh = new StaticFileHandler(webRoot);
-        sfh.sendGetRequest(client.getOutputStream(), parser.getUri());
+        return parser;
     }
 
-    private HttpResponseBuilder applyFilters(HttpRequest request) {
+    private HttpRequest buildHttpRequest(HttpParser parser) {
+        HttpRequest request = new HttpRequest(
+                parser.getMethod(), parser.getUri(), parser.getVersion(),
+                parser.getHeadersMap(), ""
+        );
+        request.setAttribute("clientIp", client.getInetAddress().getHostAddress());
+        return request;
+    }
+
+    private boolean isForbiddenByFilters(HttpRequest request) throws IOException {
         HttpResponseBuilder response = new HttpResponseBuilder();
-        FilterChainImpl chain = new FilterChainImpl(filters);
-        chain.doFilter(request, response);
-        return response;
+        new FilterChainImpl(filters).doFilter(request, response);
+
+        int status = response.getStatusCode();
+        if (status == HttpResponseBuilder.SC_FORBIDDEN || status == HttpResponseBuilder.SC_BAD_REQUEST) {
+            client.getOutputStream().write(response.build());
+            client.getOutputStream().flush();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isPathTraversal(String uri) throws IOException {
+        if (uri.contains("..")) {
+            sendErrorResponse(client.getOutputStream(), 403, "Forbidden");
+            return true;
+        }
+        return false;
+    }
+
+    private void serveFile(String uri) throws IOException {
+        StaticFileHandler sfh = new StaticFileHandler(webRoot, fileCache);
+        try {
+            sfh.sendGetRequest(client.getOutputStream(), uri);
+        } catch (NoSuchFileException e) {
+            sendErrorResponse(client.getOutputStream(), 404, "Not Found");
+        } catch (Exception e) {
+            sendErrorResponse(client.getOutputStream(), 500, "Internal Server Error");
+        }
+    }
+
+    private void sendErrorResponse(OutputStream out, int statusCode, String message) throws IOException {
+        out.write(HttpResponseBuilder.createErrorResponse(statusCode, message));
+        out.flush();
     }
 
     @Override
