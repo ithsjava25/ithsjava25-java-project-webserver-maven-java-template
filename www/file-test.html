@@ -203,19 +203,6 @@
     .filepath span {
       color: var(--accent);
     }
-
-    .skipped-note {
-      margin-top: 1.5rem;
-      max-width: 760px;
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      font-family: 'IBM Plex Mono', monospace;
-      line-height: 1.8;
-    }
-
-    .skipped-note strong {
-      color: #555;
-    }
   </style>
 </head>
 <body>
@@ -272,62 +259,72 @@
 
 <!-- JavaScript which handles file selection and display -->
 <script>
-  <!--  -->
+  // A const mapping the path, category of file and label of each supported file format
   const types = {
-    jpeg: { path: '/test-files/test.jpeg', kind: 'image', label: 'image/jpeg' },
-    jpg:  { path: '/test-files/test.jpg',  kind: 'image', label: 'image/jpg'  },
-    png:  { path: '/test-files/test.png',  kind: 'image', label: 'image/png'  },
-    gif:  { path: '/test-files/test.gif',  kind: 'image', label: 'image/gif'  },
-    webp: { path: '/test-files/test.webp', kind: 'image', label: 'image/webp' },
-    svg:  { path: '/test-files/test.svg',  kind: 'image', label: 'image/svg'  },
-    txt:  { path: '/test-files/test.txt',  kind: 'text',  label: 'text/plain' },
-    pdf:  { path: '/test-files/test.pdf',  kind: 'pdf',   label: 'application/pdf' },
-    mp4:  { path: '/test-files/test.mp4',  kind: 'video', label: 'video/mp4'  },
-    webm: { path: '/test-files/test.webm', kind: 'video', label: 'video/webm' },
-    mp3:  { path: '/test-files/test.mp3',  kind: 'audio', label: 'audio/mpeg' },
-    wav:  { path: '/test-files/test.wav',  kind: 'audio', label: 'audio/wav'  },
+    jpg:  { path: '/test-files/test.jpg',  category: 'image', label: 'jpg'  },
+    jpeg: { path: '/test-files/test.jpeg', category: 'image', label: 'jpeg' },
+    png:  { path: '/test-files/test.png',  category: 'image', label: 'png'  },
+    gif:  { path: '/test-files/test.gif',  category: 'image', label: 'gif'  },
+    webp: { path: '/test-files/test.webp', category: 'image', label: 'webp' },
+    svg:  { path: '/test-files/test.svg',  category: 'image', label: 'svg'  },
+    txt:  { path: '/test-files/test.txt',  category: 'text',  label: 'plain' },
+    pdf:  { path: '/test-files/test.pdf',  category: 'pdf',   label: 'pdf' },
+    mp4:  { path: '/test-files/test.mp4',  category: 'video', label: 'video/mp4'  },
+    webm: { path: '/test-files/test.webm', category: 'video', label: 'video/webm' },
+    mp3:  { path: '/test-files/test.mp3',  category: 'audio', label: 'audio/mpeg' },
+    wav:  { path: '/test-files/test.wav',  category: 'audio', label: 'audio/wav'  },
   };
 
-  function loadFile(ext) {
+  /**
+   * Loads the type of file selected in the dropdown menu.
+   * @param fileType
+   */
+  function loadFile(fileType) {
     const contentArea = document.getElementById('content-area');
     const typeTag = document.getElementById('type-tag');
     const filePathDisplay = document.getElementById('filepath-display');
 
-    if (!ext || !types[ext]) {
+    // If no filetype is selected then show a message prompting the user to select a file type
+    if (!fileType || !types[fileType]) {
       contentArea.innerHTML = `<div class="placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>select a file type above</div>`;
       typeTag.textContent = '—';
       filePathDisplay.innerHTML = '—';
       return;
     }
 
-    const { path, kind, label } = types[ext];
-    typeTag.textContent = ext;
+    // Assigns a variable to each value in the types const and displays the information in the card header
+    const { path, category, label } = types[fileType];
+    typeTag.textContent = fileType;
     filePathDisplay.innerHTML = `<span>${path}</span>`;
 
-    if (kind === 'image') {
+    // Displays the file type based on category
+    if (category === 'image') {
       const image = document.createElement('img');
       image.src = path;
-      image.alt = `test ${ext}`;
+      image.alt = `test ${fileType}`;
       image.onerror = () => {
-        image.outerHTML = `<span style="color:#4a6080;font-family:monospace;font-size:.8rem">file not found: ${path}</span>`;
+        image.outerHTML = `<span style = "color:#4a6080;font-family:monospace;font-size:.8rem">file not found: ${path}</span>`;
       };
       contentArea.innerHTML = '';
-      contentArea.appendChild(image);    } else if (kind === 'text') {
+      contentArea.appendChild(image);
+    } else if (category === 'text') {
       fetch(path)
               .then(response => { if (!response.ok) { throw new Error('not found'); } return response.text(); })
-              .then(responseText => { contentArea.innerHTML = `<pre>${escapeHtml(responseText)}</pre>`; })
+              .then(responseText => {
+                const pre = document.createElement('pre');
+                pre.textContent = responseText;
+                contentArea.innerHTML = '';
+                contentArea.appendChild(pre);
+              })
               .catch(() => { contentArea.innerHTML = `<span style="color:#555;font-family:monospace;font-size:.8rem">file not found: ${path}</span>`; });
-    } else if (kind === 'pdf') {
+    } else if (category === 'pdf') {
       contentArea.innerHTML = `<embed src="${path}" type="application/pdf">`;
-    } else if (kind === 'video') {
+    } else if (category === 'video') {
       contentArea.innerHTML = `<video controls><source src="${path}" type="${label}">Your browser does not support this video format.</video>`;
-    } else if (kind === 'audio') {
+    } else if (category === 'audio') {
       contentArea.innerHTML = `<audio controls><source src="${path}" type="${label}">Your browser does not support this audio format.</audio>`;
     }
   }
-
-  function escapeHtml(text) {
-    return text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-  }</script>
+</script>
 </body>
 </html>
