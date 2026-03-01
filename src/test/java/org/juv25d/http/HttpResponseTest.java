@@ -25,8 +25,9 @@ public class HttpResponseTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenStatusTextIsNull() {
-        assertThrows(NullPointerException.class, () -> response.setStatusText(null));
+    void shouldAllowEmptyStatusText() {
+        response.setStatusText("");
+        assertEquals("", response.statusText());
     }
 
     @Test
