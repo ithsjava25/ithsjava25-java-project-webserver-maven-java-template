@@ -4,27 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.juv25d</groupId>
-    <artifactId>JavaHttpServer</artifactId>
+    <groupId>org.example</groupId>
+    <artifactId>JavaTemplate</artifactId>
     <version>1.0-SNAPSHOT</version>
 
-    <scm>
-        <connection>scm:git:https://github.com/ithsjava25/project-webserver-juv25d.git</connection>
-        <developerConnection>scm:git:https://github.com/ithsjava25/project-webserver-juv25d.git</developerConnection>
-        <url>https://github.com/ithsjava25/project-webserver-juv25d</url>
-        <tag>HEAD</tag>
-    </scm>
-
     <properties>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>23</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <junit.jupiter.version>6.0.2</junit.jupiter.version>
+        <junit.jupiter.version>6.0.3</junit.jupiter.version>
         <assertj.core.version>3.27.7</assertj.core.version>
         <mockito.version>5.21.0</mockito.version>
-        <errorprone.version>2.45.0</errorprone.version>
-        <nullaway.version>0.13.1</nullaway.version>
-        <build.time>${maven.build.timestamp}</build.time>
-        <argLine/>
     </properties>
     <dependencies>
         <dependency>
@@ -45,40 +34,6 @@
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.tngtech.archunit</groupId>
-            <artifactId>archunit</artifactId>
-            <version>1.4.1</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-            <version>2.5</version>
-        </dependency>
-        <dependency>
-            <groupId>com.bucket4j</groupId>
-            <artifactId>bucket4j_jdk17-core</artifactId>
-            <version>8.16.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
-            <version>2.0.3</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>1.21.4</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-            <version>1.0.0</version>
-        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -91,36 +46,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
-                <configuration>
-                    <fork>true</fork>
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=org.juv25d</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${errorprone.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.uber.nullaway</groupId>
-                            <artifactId>nullaway</artifactId>
-                            <version>${nullaway.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -129,33 +54,38 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.4.0</version>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.9.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>properties</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-dependency-plugin</artifactId>
+                 <version>3.10.0</version>
+                 <executions>
+                     <execution>
+                         <goals>
+                             <goal>properties</goal>
+                         </goals>
+                     </execution>
+                 </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.4</version>
-                <configuration>
-                    <argLine>@{argLine} -Xshare:off</argLine>
-                </configuration>
+                <version>3.5.5</version>
+                 <configuration>
+                     <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.4</version>
+                <version>3.5.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -188,113 +118,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.2.1</version>
-                <configuration>
-                    <java>
-                        <includes>
-                            <include>src/main/java/**/*.java</include>
-                            <include>src/test/java/**/*.java</include>
-                        </includes>
-
-                        <removeUnusedImports />
-                        <trimTrailingWhitespace />
-                        <formatAnnotations />
-                    </java>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.pitest</groupId>
-                <artifactId>pitest-maven</artifactId>
-                <version>1.22.0</version>
-
-                <dependencies>
-                    <dependency>
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-junit5-plugin</artifactId>
-                        <version>1.2.2</version>
-                    </dependency>
-                </dependencies>
-
-                <configuration>
-                    <targetClasses>
-                        <param>org.juv25d.*</param>
-                    </targetClasses>
-                    <targetTests>
-                        <param>org.juv25d.*</param>
-                    </targetTests>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>buildnumber-maven-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>create</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <doCheck>false</doCheck>
-                    <doUpdate>false</doUpdate>
-                    <shortRevisionLength>7</shortRevisionLength>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <finalName>app</finalName>
-                            <shadedArtifactAttached>false</shadedArtifactAttached>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>org.juv25d.App</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>buildnumber-maven-plugin</artifactId>
-                    <version>3.2.0</version>
-                    <executions>
-                        <execution>
-                            <phase>validate</phase>
-                            <goals>
-                                <goal>create</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>false</filtering>
-            </resource>
-            <resource>
-                <directory>src/main/resources-filtered</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
     </build>
 </project>
