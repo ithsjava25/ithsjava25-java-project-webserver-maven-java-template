@@ -1,28 +1,33 @@
 package org.example;
 
 import org.example.config.AppConfig;
+import org.example.filter.FilterPipelineFactory;
 import org.example.filter.IpFilter;
-import org.example.httpparser.HttpParser;
-import org.example.httpparser.HttpRequest;
-import java.util.ArrayList;
-import java.util.List;
 import org.example.filter.Filter;
 import org.example.filter.FilterChainImpl;
+import org.example.filter.LocaleFilter;
+import org.example.httpparser.HttpParser;
+import org.example.httpparser.HttpRequest;
 import org.example.http.HttpResponseBuilder;
 import org.example.config.ConfigLoader;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ConnectionHandler implements AutoCloseable {
 
-    Socket client;
-    String uri;
+    private final Socket client;
+    private String uri;
     private final List<Filter> filters;
-    String webRoot;
+    private final AppConfig appConfig;
+    private String webRoot;
+
 
     public ConnectionHandler(Socket client) {
         this.client = client;
+        this.appConfig = ConfigLoader.get();
         this.filters = buildFilters();
         this.webRoot = null;
     }
@@ -30,28 +35,28 @@ public class ConnectionHandler implements AutoCloseable {
     public ConnectionHandler(Socket client, String webRoot) {
         this.client = client;
         this.webRoot = webRoot;
+        this.appConfig = ConfigLoader.get();
         this.filters = buildFilters();
     }
 
     private List<Filter> buildFilters() {
         List<Filter> list = new ArrayList<>();
-        AppConfig config = ConfigLoader.get();
-        AppConfig.IpFilterConfig ipFilterConfig = config.ipFilter();
+
+
+        List<String> configFilters = appConfig.getFilters();
+        list.addAll(FilterPipelineFactory.buildFilters(configFilters));
+
+
+        AppConfig.IpFilterConfig ipFilterConfig = appConfig.ipFilter();
         if (Boolean.TRUE.equals(ipFilterConfig.enabled())) {
             list.add(createIpFilterFromConfig(ipFilterConfig));
         }
-        // Add more filters here...
+
         return list;
     }
 
     public void runConnectionHandler() throws IOException {
-        StaticFileHandler sfh;
-
-        if (webRoot != null) {
-            sfh = new StaticFileHandler(webRoot);
-        } else {
-            sfh = new StaticFileHandler();
-        }
+        StaticFileHandler sfh = (webRoot != null) ? new StaticFileHandler(webRoot) : new StaticFileHandler();
 
         HttpParser parser = new HttpParser();
         parser.setReader(client.getInputStream());
@@ -74,8 +79,7 @@ public class ConnectionHandler implements AutoCloseable {
         int statusCode = response.getStatusCode();
         if (statusCode == HttpResponseBuilder.SC_FORBIDDEN ||
                 statusCode == HttpResponseBuilder.SC_BAD_REQUEST) {
-            byte[] responseBytes = response.build();
-            client.getOutputStream().write(responseBytes);
+            client.getOutputStream().write(response.build());
             client.getOutputStream().flush();
             return;
         }
@@ -86,10 +90,8 @@ public class ConnectionHandler implements AutoCloseable {
 
     private HttpResponseBuilder applyFilters(HttpRequest request) {
         HttpResponseBuilder response = new HttpResponseBuilder();
-
         FilterChainImpl chain = new FilterChainImpl(filters);
         chain.doFilter(request, response);
-
         return response;
     }
 
@@ -109,7 +111,7 @@ public class ConnectionHandler implements AutoCloseable {
     private IpFilter createIpFilterFromConfig(AppConfig.IpFilterConfig config) {
         IpFilter filter = new IpFilter();
 
-        // Set mode
+
         if ("ALLOWLIST".equalsIgnoreCase(config.mode())) {
             filter.setMode(IpFilter.FilterMode.ALLOWLIST);
         } else {
