@@ -3,6 +3,8 @@ package org.example.config;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AppConfig(
         @JsonProperty("server") ServerConfig server,
@@ -20,8 +22,12 @@ public record AppConfig(
     public AppConfig withDefaultsApplied() {
         ServerConfig serverConfig = (server == null ? ServerConfig.defaults() : server.withDefaultsApplied());
         LoggingConfig loggingConfig = (logging == null ? LoggingConfig.defaults() : logging.withDefaultsApplied());
-        IpFilterConfig ipFilterConfig = (ipFilter == null ? IpFilterConfig.defaults() : ipFilter.withDefaultsApplied());  // ← LÄGG TILL
-        return new AppConfig(serverConfig, loggingConfig, ipFilterConfig);  // ← UPPDATERA DENNA RAD
+        IpFilterConfig ipFilterConfig = (ipFilter == null ? IpFilterConfig.defaults() : ipFilter.withDefaultsApplied());
+        return new AppConfig(serverConfig, loggingConfig, ipFilterConfig);
+    }
+
+    public List<String> getFilters() {
+        return List.of();
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

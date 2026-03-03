@@ -23,7 +23,7 @@ public class StaticFileHandler {
         WEB_ROOT = webRoot;
     }
 
-    private void handleGetRequest(String uri) throws IOException {
+    void handleGetRequest(String uri) throws IOException {
         // Sanitize URI
         int q = uri.indexOf('?');
         if (q >= 0) uri = uri.substring(0, q);
@@ -60,10 +60,18 @@ public class StaticFileHandler {
         handleGetRequest(uri);
         HttpResponseBuilder response = new HttpResponseBuilder();
         response.setStatusCode(statusCode);
-        // Use MimeTypeDetector instead of hardcoded text/html
+
         response.setContentTypeFromFilename(uri);
         response.setBody(fileBytes);
         outputStream.write(response.build());
         outputStream.flush();
+    }
+
+    public byte[] getFileBytes() {
+        return new byte[0];
+    }
+
+    public int getStatusCode() {
+        return 0;
     }
 }
