@@ -1,11 +1,9 @@
 package org.example;
 
 import org.example.config.AppConfig;
-import org.example.filter.FilterPipelineFactory;
-import org.example.filter.IpFilter;
 import org.example.filter.Filter;
 import org.example.filter.FilterChainImpl;
-import org.example.filter.LocaleFilter;
+import org.example.filter.FilterPipelineFactory;
 import org.example.httpparser.HttpParser;
 import org.example.httpparser.HttpRequest;
 import org.example.http.HttpResponseBuilder;
@@ -13,7 +11,6 @@ import org.example.config.ConfigLoader;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ConnectionHandler implements AutoCloseable {
@@ -28,7 +25,7 @@ public class ConnectionHandler implements AutoCloseable {
     public ConnectionHandler(Socket client) {
         this.client = client;
         this.appConfig = ConfigLoader.get();
-        this.filters = buildFilters();
+        this.filters = FilterPipelineFactory.build(appConfig);
         this.webRoot = null;
     }
 
@@ -36,23 +33,8 @@ public class ConnectionHandler implements AutoCloseable {
         this.client = client;
         this.webRoot = webRoot;
         this.appConfig = ConfigLoader.get();
-        this.filters = buildFilters();
-    }
+        this.filters = FilterPipelineFactory.build(appConfig);
 
-    private List<Filter> buildFilters() {
-        List<Filter> list = new ArrayList<>();
-
-
-        List<String> configFilters = appConfig.getFilters();
-        list.addAll(FilterPipelineFactory.buildFilters(configFilters));
-
-
-        AppConfig.IpFilterConfig ipFilterConfig = appConfig.ipFilter();
-        if (Boolean.TRUE.equals(ipFilterConfig.enabled())) {
-            list.add(createIpFilterFromConfig(ipFilterConfig));
-        }
-
-        return list;
     }
 
     public void runConnectionHandler() throws IOException {
@@ -108,27 +90,4 @@ public class ConnectionHandler implements AutoCloseable {
         client.close();
     }
 
-    private IpFilter createIpFilterFromConfig(AppConfig.IpFilterConfig config) {
-        IpFilter filter = new IpFilter();
-
-
-        if ("ALLOWLIST".equalsIgnoreCase(config.mode())) {
-            filter.setMode(IpFilter.FilterMode.ALLOWLIST);
-        } else {
-            filter.setMode(IpFilter.FilterMode.BLOCKLIST);
-        }
-
-        // Add blocked IPs
-        for (String ip : config.blockedIps()) {
-            filter.addBlockedIp(ip);
-        }
-
-        // Add allowed IPs
-        for (String ip : config.allowedIps()) {
-            filter.addAllowedIp(ip);
-        }
-
-        filter.init();
-        return filter;
-    }
 }

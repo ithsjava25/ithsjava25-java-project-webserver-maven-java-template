@@ -4,6 +4,7 @@ import org.example.http.HttpResponseBuilder;
 import org.example.httpparser.HttpRequest;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Filter that extracts the preferred locale from the Accept-Language header of an HTTP request.
@@ -39,17 +40,9 @@ public class LocaleFilter implements Filter {
         }
     }
 
-    @Override
-    public void destroy() {
-    }
-
     public static String getCurrentLocale() {
         String locale = currentLocale.get();
-        if (locale != null) {
-            return locale;
-        } else {
-            return DEFAULT_LOCALE;
-        }
+        return Objects.requireNonNullElse(locale, DEFAULT_LOCALE);
     }
 
     /**

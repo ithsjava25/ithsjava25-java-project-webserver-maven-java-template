@@ -66,7 +66,7 @@ public class CompressionFilter implements Filter {
             return;
         }
 
-        String acceptEncoding = getHeader(request, "Accept-Encoding");
+        String acceptEncoding = getHeader(request);
         if (acceptEncoding == null || !acceptEncoding.toLowerCase().contains("gzip")) {
             return;
         }
@@ -116,14 +116,14 @@ public class CompressionFilter implements Filter {
                 baseType.startsWith("text/");
     }
 
-    private String getHeader(HttpRequest request, String headerName) {
+    private String getHeader(HttpRequest request) {
         Map<String, String> headers = request.getHeaders();
 
-        String value = headers.get(headerName);
+        String value = headers.get("Accept-Encoding");
         if (value != null) return value;
 
         for (Map.Entry<String, String> entry : headers.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(headerName)) {
+            if (entry.getKey().equalsIgnoreCase("Accept-Encoding")) {
                 return entry.getValue();
             }
         }
@@ -140,7 +140,4 @@ public class CompressionFilter implements Filter {
         return byteStream.toByteArray();
     }
 
-    @Override
-    public void destroy() {
-    }
 }

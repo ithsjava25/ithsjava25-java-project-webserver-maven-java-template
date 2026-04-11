@@ -32,6 +32,11 @@ public class StaticFileHandler {
         uri = uri.replace("\0", "");
         if (uri.startsWith("/")) uri = uri.substring(1);
 
+        if (uri == null || uri.isEmpty()) {
+            uri = "index.html";
+
+        }
+
         // Path traversal check
         File root = new File(WEB_ROOT).getCanonicalFile();
         File file = new File(root, uri).getCanonicalFile();
@@ -68,10 +73,10 @@ public class StaticFileHandler {
     }
 
     public byte[] getFileBytes() {
-        return new byte[0];
+        return fileBytes;
     }
 
     public int getStatusCode() {
-        return 0;
+        return statusCode;
     }
-}
+    }

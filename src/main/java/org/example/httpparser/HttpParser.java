@@ -1,16 +1,12 @@
 package org.example.httpparser;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 public class HttpParser extends HttpParseRequestLine {
-    private boolean debug = false;
-    private Map<String, String> headersMap = new HashMap<>();
+    private final Map<String, String> headersMap = new HashMap<>();
     private BufferedReader reader;
 
     public void setReader(InputStream in) {
@@ -37,12 +33,6 @@ public class HttpParser extends HttpParseRequestLine {
 
             headersMap.merge(key, value, (existing, incoming) -> existing +", " + incoming);
         }
-        if (debug) {
-            System.out.println("Host: " + headersMap.get("Host"));
-            for (String key : headersMap.keySet()) {
-                System.out.println(key + ": " + headersMap.get(key));
-            }
-        }
     }
 
 
@@ -54,7 +44,4 @@ public class HttpParser extends HttpParseRequestLine {
         return headersMap;
     }
 
-    public BufferedReader getHeaderReader() {
-        return reader;
-    }
 }

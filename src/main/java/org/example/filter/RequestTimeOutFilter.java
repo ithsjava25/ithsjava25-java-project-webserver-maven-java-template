@@ -75,17 +75,13 @@ public class RequestTimeOutFilter implements Filter {
                 response.setHeaders(Map.of("Content-Type", "text/html; charset=utf-8"));
                 response.setBody("<h1>504 Gateway Timeout</h1><p>The server took too long to respond.</p>");
 
-                return;
-
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             future.cancel(true);
             handleInternalError(response, e);
-            return;
 
         }  catch (ExecutionException e) {
             handleInternalError(response, e);
-            return;
         }
     }
     private void transferResponseData(HttpResponseBuilder source, HttpResponseBuilder target) {
@@ -107,16 +103,4 @@ public class RequestTimeOutFilter implements Filter {
         response.setBody("<h1>500 Internal Server Error</h1>");
     }
 
-    @Override
-    public void destroy() {
-        executor.shutdown();
-        try {
-            if(!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-    }
 }

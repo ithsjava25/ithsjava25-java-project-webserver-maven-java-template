@@ -4,13 +4,14 @@ import org.example.http.HttpResponseBuilder;
 import org.example.httpparser.HttpRequest;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Filter that determines the preferred locale for an HTTP request using cookies and headers.
  * <p>
  * First, it checks for a locale set in a cookie named "user-lang". If the cookie is missing,
  * blank, or malformed, it falls back to the Accept-Language header. If neither is present
- * or valid, the filter defaults to "en-US".
+ * nor valid, the filter defaults to "en-US".
  * <p>
  * The selected locale is stored in a ThreadLocal variable so it can be accessed throughout
  * the processing of the request.
@@ -42,17 +43,9 @@ public class LocaleFilterWithCookie implements Filter {
         }
     }
 
-    @Override
-    public void destroy() {
-    }
-
     public static String getCurrentLocale() {
         String locale = currentLocale.get();
-        if (locale != null) {
-            return locale;
-        } else {
-            return DEFAULT_LOCALE;
-        }
+        return Objects.requireNonNullElse(locale, DEFAULT_LOCALE);
     }
 
     private String resolveLocale(HttpRequest request) {

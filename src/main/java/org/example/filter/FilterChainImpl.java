@@ -13,7 +13,7 @@ public class FilterChainImpl implements FilterChain {
     private int index = 0;
 
     public FilterChainImpl(List<Filter> filters) {
-        this(filters, (req, resp) -> {
+        this(filters, (_, _) -> {
             // default no-op (preserves previous behavior)
         });
     }

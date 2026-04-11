@@ -9,6 +9,4 @@ public interface Filter {
 
     void doFilter(HttpRequest request, HttpResponseBuilder response, FilterChain chain);
 
-    void destroy();
-
 }

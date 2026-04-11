@@ -220,10 +220,6 @@ class ConfigurableFilterPipelineTest {
                 }
             }
 
-            @Override
-            public void destroy() {
-                // no-op
-            }
         };
 
         Filter f2 = new Filter() {
@@ -242,10 +238,6 @@ class ConfigurableFilterPipelineTest {
                 }
             }
 
-            @Override
-            public void destroy() {
-                // no-op
-            }
         };
 
         List<FilterRegistration> regs = List.of(
@@ -323,9 +315,5 @@ class ConfigurableFilterPipelineTest {
             chain.doFilter(request, response);
         }
 
-        @Override
-        public void destroy() {
-            // no-op
-        }
     }
 }

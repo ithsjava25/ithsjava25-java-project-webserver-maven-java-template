@@ -4,31 +4,42 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AppConfig(
         @JsonProperty("server") ServerConfig server,
         @JsonProperty("logging") LoggingConfig logging,
-        @JsonProperty("ipFilter") IpFilterConfig ipFilter
+        @JsonProperty("filters") List<FilterConfig> filters
 ) {
+
     public static AppConfig defaults() {
         return new AppConfig(
                 ServerConfig.defaults(),
                 LoggingConfig.defaults(),
-                IpFilterConfig.defaults()
+                List.of()
         );
     }
 
     public AppConfig withDefaultsApplied() {
-        ServerConfig serverConfig = (server == null ? ServerConfig.defaults() : server.withDefaultsApplied());
-        LoggingConfig loggingConfig = (logging == null ? LoggingConfig.defaults() : logging.withDefaultsApplied());
-        IpFilterConfig ipFilterConfig = (ipFilter == null ? IpFilterConfig.defaults() : ipFilter.withDefaultsApplied());
-        return new AppConfig(serverConfig, loggingConfig, ipFilterConfig);
+        ServerConfig serverConfig =
+                (server == null ? ServerConfig.defaults() : server.withDefaultsApplied());
+
+        LoggingConfig loggingConfig =
+                (logging == null ? LoggingConfig.defaults() : logging.withDefaultsApplied());
+
+        List<FilterConfig> filterList =
+                (filters == null ? List.of() : filters);
+
+        return new AppConfig(serverConfig, loggingConfig, filterList);
     }
 
-    public List<String> getFilters() {
-        return List.of();
-    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record FilterConfig(
+            @JsonProperty("type") String type,
+            @JsonProperty("config") Map<String, Object> config
+    ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ServerConfig(
@@ -42,9 +53,10 @@ public record AppConfig(
         public ServerConfig withDefaultsApplied() {
             int p = (port == null ? 8080 : port);
             if (p < 1 || p > 65535) {
-                throw new IllegalArgumentException("Invalid port number: " + p + ". Port must be between 1 and 65535");
+                throw new IllegalArgumentException("Invalid port number: " + p);
             }
             String rd = (rootDir == null || rootDir.isBlank()) ? "./www" : rootDir;
+
             return new ServerConfig(p, rd);
         }
     }
@@ -60,26 +72,6 @@ public record AppConfig(
         public LoggingConfig withDefaultsApplied() {
             String lvl = (level == null || level.isBlank()) ? "INFO" : level;
             return new LoggingConfig(lvl);
-        }
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IpFilterConfig(
-            @JsonProperty("enabled") Boolean enabled,
-            @JsonProperty("mode") String mode,
-            @JsonProperty("blockedIps") java.util.List<String> blockedIps,
-            @JsonProperty("allowedIps") java.util.List<String> allowedIps
-    ) {
-        public static IpFilterConfig defaults() {
-            return new IpFilterConfig(false, "BLOCKLIST", java.util.List.of(), java.util.List.of());
-        }
-
-        public IpFilterConfig withDefaultsApplied() {
-            Boolean e = (enabled == null) ? false : enabled;
-            String m = (mode == null || mode.isBlank()) ? "BLOCKLIST" : mode;
-            java.util.List<String> blocked = (blockedIps == null) ? java.util.List.of() : blockedIps;
-            java.util.List<String> allowed = (allowedIps == null) ? java.util.List.of() : allowedIps;
-            return new IpFilterConfig(e, m, blocked, allowed);
         }
     }
 }
